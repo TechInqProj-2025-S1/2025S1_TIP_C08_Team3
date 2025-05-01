@@ -239,6 +239,9 @@ class TetrisGame:
         name = ""
         input_active = True
         font = pygame.font.SysFont('Arial', 36)
+        difficulty = None
+        easy_button = pygame.Rect(SCREEN_WIDTH // 2 - 160, SCREEN_HEIGHT // 2 + 80, 140, 50)
+        hard_button = pygame.Rect(SCREEN_WIDTH // 2 + 20, SCREEN_HEIGHT // 2 + 80, 140, 50)
         while input_active:
             self.screen.fill(BG_COLOR)
             prompt = font.render("Enter your name:", True, TEXT_COLOR)
@@ -246,21 +249,39 @@ class TetrisGame:
             name_surface = font.render(name, True, ACCENT_COLOR)
             input_box = pygame.Rect(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2, 300, 50)
             pygame.draw.rect(self.screen, WHITE, input_box, 2)
-            self.screen.blit(name_surface, (input_box.x + 10, input_box.y + 8))
+            name_rect = name_surface.get_rect()
+            name_rect.midleft = (input_box.x + 10, input_box.y + input_box.height // 2)
+            self.screen.blit(name_surface, name_rect)
             instr = SCORE_FONT.render("Press Enter to start", True, TEXT_COLOR)
             self.screen.blit(instr, (SCREEN_WIDTH // 2 - instr.get_width() // 2, SCREEN_HEIGHT // 2 + 70))
+            # Draw difficulty buttons
+            pygame.draw.rect(self.screen, ACCENT_COLOR if difficulty == 'easy' else WHITE, easy_button, border_radius=8)
+            pygame.draw.rect(self.screen, ACCENT_COLOR if difficulty == 'hard' else WHITE, hard_button, border_radius=8)
+            easy_text = SCORE_FONT.render("Easy", True, TEXT_COLOR)
+            hard_text = SCORE_FONT.render("Hard", True, TEXT_COLOR)
+            self.screen.blit(easy_text, (easy_button.x + (easy_button.width - easy_text.get_width()) // 2, easy_button.y + 10))
+            self.screen.blit(hard_text, (hard_button.x + (hard_button.width - hard_text.get_width()) // 2, hard_button.y + 10))
+            diff_instr = SCORE_FONT.render("Choose difficulty:", True, TEXT_COLOR)
+            self.screen.blit(diff_instr, (SCREEN_WIDTH // 2 - diff_instr.get_width() // 2, SCREEN_HEIGHT // 2 + 40))
             pygame.display.flip()
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     exit()
                 elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_RETURN and name:
+                    if event.key == pygame.K_RETURN and name and difficulty:
                         input_active = False
                     elif event.key == pygame.K_BACKSPACE:
                         name = name[:-1]
                     elif len(name) < 12 and event.unicode.isprintable():
                         name += event.unicode
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    mx, my = event.pos
+                    if easy_button.collidepoint(mx, my):
+                        difficulty = 'easy'
+                    elif hard_button.collidepoint(mx, my):
+                        difficulty = 'hard'
+        self.difficulty_mode = difficulty
         return name
 
     def new_piece(self):
@@ -329,6 +350,30 @@ class TetrisGame:
                                      (grid_left + x * grid_size + 1, 
                                       grid_top + y * grid_size + 1, 
                                       grid_size - 2, grid_size - 2))
+        
+        # Draw the shadow (ghost) piece
+        if self.current_piece and self.current_piece.shape is not None:
+            ghost_y = self.current_piece.y
+            # Find the lowest y the piece can go
+            while self.valid_move(self.current_piece, self.current_piece.x, ghost_y + 1):
+                ghost_y += 1
+            # Draw the ghost piece (outline or translucent)
+            for i, row in enumerate(self.current_piece.shape):
+                for j, cell in enumerate(row):
+                    if cell:
+                        # Use a light gray or translucent color for the shadow
+                        shadow_color = (180, 180, 180, 120)  # RGBA for translucency
+                        rect = pygame.Rect(
+                            grid_left + (self.current_piece.x + j) * grid_size + 1,
+                            grid_top + (ghost_y + i) * grid_size + 1,
+                            grid_size - 2, grid_size - 2)
+                        # Draw as outline if surface doesn't support alpha
+                        if self.screen.get_bitsize() == 32:
+                            s = pygame.Surface((grid_size - 2, grid_size - 2), pygame.SRCALPHA)
+                            s.fill(shadow_color)
+                            self.screen.blit(s, rect.topleft)
+                        else:
+                            pygame.draw.rect(self.screen, (180, 180, 180), rect, 2)
         
         # Draw the current piece
         if self.current_piece and self.current_piece.shape is not None:
@@ -439,10 +484,11 @@ class TetrisGame:
         self.hold_used = False
         self.pieces_since_question = 0
         self.math_question_active = False
+        self.set_state("playing")
         
     def trigger_math_challenge(self):
         self.math_problem.reset()
-        self.state = "math_challenge"
+        self.set_state("math_challenge")
         self.piece_locked = True
 
     def show_math_modal(self):
@@ -481,10 +527,29 @@ class TetrisGame:
             self.piece_locked = True
             self.math_feedback_time -= dt
             if self.math_feedback_time <= 0:
-                self.state = "playing"
+                self.set_state("playing")
                 self.piece_locked = False
         elif self.state == "math_challenge":
-            self.piece_locked = True
+            # Easy: pause piece; Hard: piece keeps falling
+            if self.difficulty_mode == 'hard':
+                self.piece_locked = False
+                self.fall_time += dt
+                if self.fall_time >= self.fall_speed:
+                    self.fall_time = 0
+                    if self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y + 1):
+                        self.current_piece.y += 1
+                    else:
+                        self.add_to_grid(self.current_piece)
+                        self.clear_lines()
+                        self.pieces_since_question += 1
+                        self.current_piece = self.next_piece
+                        self.next_piece = self.new_piece()
+                        # Don't trigger another math challenge here
+                        if not self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y):
+                            self.set_state("game_over")
+                            self.game_over = True
+            else:
+                self.piece_locked = True
         elif self.state == "playing":
             self.piece_locked = False
             self.fall_time += dt
@@ -501,9 +566,9 @@ class TetrisGame:
                     if self.pieces_since_question >= 5:
                         self.trigger_math_challenge()
                         self.pieces_since_question = 0
-                    if not self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y):
-                        self.state = "game_over"
-                        self.game_over = True
+            if not self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y):
+                self.set_state("game_over")
+                self.game_over = True
 
     def run(self):
         running = True
@@ -534,7 +599,7 @@ class TetrisGame:
                                 else:
                                     self.feedback_message = f"Wrong! Answer: {self.math_problem.answer}"
                                     self.feedback_color = WARNING_COLOR
-                                self.state = "feedback"
+                                self.set_state("feedback")
                                 self.math_feedback_time = 1.2
                     elif self.state == "playing":
                         if event.key == pygame.K_LEFT or event.key == pygame.K_a:
@@ -562,7 +627,6 @@ class TetrisGame:
                     elif self.state == "game_over":
                         if event.key == pygame.K_r:
                             self.reset_game()
-                            self.state = "playing"
                             score_saved = False
                     if event.key == pygame.K_ESCAPE:
                         running = False
@@ -682,6 +746,14 @@ class TetrisGame:
         scores.append(entry)
         with open(score_file, 'w') as f:
             json.dump(scores, f)
+
+    def set_state(self, new_state):
+        # Helper to change state and reset movement flags if leaving 'playing'
+        if hasattr(self, 'state') and self.state == 'playing' and new_state != 'playing':
+            self.move_left_pressed = False
+            self.move_right_pressed = False
+            self.move_down_pressed = False
+        self.state = new_state
 
 # Main game function
 def main():
