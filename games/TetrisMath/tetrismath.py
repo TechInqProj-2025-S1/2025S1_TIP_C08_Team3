@@ -1,5 +1,7 @@
 import pygame
 import random
+import os
+import json
 
 # Initialize Pygame
 pygame.init()
@@ -219,13 +221,48 @@ class TetrisGame:
         self.hold_used = False
         self.move_left_pressed = False
         self.move_right_pressed = False
+        self.move_down_pressed = False
         self.move_delay = 120  # ms before repeat
         self.move_interval = 50  # ms between repeats
         self.last_move_time = 0
         self.last_dir = 0
         self.pieces_since_question = 0
         self.math_question_active = False
+        self.player_name = self.prompt_player_name()
+        self.state = "playing"  # 'playing', 'math_challenge', 'feedback', 'game_over'
+        self.feedback_message = ""
+        self.feedback_color = ACCENT_COLOR
+        self.debug = True  # Enable debug mode for verbose console output
         
+    def prompt_player_name(self):
+        # Simple text input prompt before game starts
+        name = ""
+        input_active = True
+        font = pygame.font.SysFont('Arial', 36)
+        while input_active:
+            self.screen.fill(BG_COLOR)
+            prompt = font.render("Enter your name:", True, TEXT_COLOR)
+            self.screen.blit(prompt, (SCREEN_WIDTH // 2 - prompt.get_width() // 2, SCREEN_HEIGHT // 2 - 60))
+            name_surface = font.render(name, True, ACCENT_COLOR)
+            input_box = pygame.Rect(SCREEN_WIDTH // 2 - 150, SCREEN_HEIGHT // 2, 300, 50)
+            pygame.draw.rect(self.screen, WHITE, input_box, 2)
+            self.screen.blit(name_surface, (input_box.x + 10, input_box.y + 8))
+            instr = SCORE_FONT.render("Press Enter to start", True, TEXT_COLOR)
+            self.screen.blit(instr, (SCREEN_WIDTH // 2 - instr.get_width() // 2, SCREEN_HEIGHT // 2 + 70))
+            pygame.display.flip()
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    exit()
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN and name:
+                        input_active = False
+                    elif event.key == pygame.K_BACKSPACE:
+                        name = name[:-1]
+                    elif len(name) < 12 and event.unicode.isprintable():
+                        name += event.unicode
+        return name
+
     def new_piece(self):
         shape = random.choice(SHAPES)
         return Tetromino(self.grid_width // 2 - len(shape[0]) // 2, 0, shape)
@@ -398,149 +435,194 @@ class TetrisGame:
         self.fall_speed = 0.5
         self.correct_answers = 0
         self.math_problem.reset()
-        self.piece_locked = True
+        self.piece_locked = False
         self.hold_used = False
         self.pieces_since_question = 0
         self.math_question_active = False
         
-    def update(self, dt):
-        if self.game_over:
-            return
+    def trigger_math_challenge(self):
+        self.math_problem.reset()
+        self.state = "math_challenge"
+        self.piece_locked = True
 
-        # Update feedback timer
-        if self.show_math_feedback:
+    def show_math_modal(self):
+        # Draw a centered modal for the math challenge
+        modal_w, modal_h = 500, 220
+        modal_x = (SCREEN_WIDTH - modal_w) // 2
+        modal_y = (SCREEN_HEIGHT - modal_h) // 2
+        modal_rect = pygame.Rect(modal_x, modal_y, modal_w, modal_h)
+        pygame.draw.rect(self.screen, WHITE, modal_rect, border_radius=16)
+        pygame.draw.rect(self.screen, PRIMARY_COLOR, modal_rect, 4, border_radius=16)
+        # Question
+        eq_text = BODY_FONT.render(f"{self.math_problem.equation}", True, TEXT_COLOR)
+        self.screen.blit(eq_text, (modal_x + 30, modal_y + 30))
+        # Input
+        ans_text = BODY_FONT.render(self.math_problem.user_answer or "_", True, ACCENT_COLOR)
+        self.screen.blit(ans_text, (modal_x + 30, modal_y + 80))
+        # Instructions
+        instr = SCORE_FONT.render("Type answer and press Enter", True, TEXT_COLOR)
+        self.screen.blit(instr, (modal_x + 30, modal_y + 140))
+
+    def show_feedback_modal(self):
+        # Draw a centered modal for feedback
+        modal_w, modal_h = 400, 120
+        modal_x = (SCREEN_WIDTH - modal_w) // 2
+        modal_y = (SCREEN_HEIGHT - modal_h) // 2
+        modal_rect = pygame.Rect(modal_x, modal_y, modal_w, modal_h)
+        pygame.draw.rect(self.screen, WHITE, modal_rect, border_radius=16)
+        pygame.draw.rect(self.screen, self.feedback_color, modal_rect, 4, border_radius=16)
+        msg = BODY_FONT.render(self.feedback_message, True, self.feedback_color)
+        self.screen.blit(msg, (modal_x + 30, modal_y + 40))
+
+    def update(self, dt):
+        if self.state == "game_over":
+            return
+        if self.state == "feedback":
+            self.piece_locked = True
             self.math_feedback_time -= dt
             if self.math_feedback_time <= 0:
-                self.show_math_feedback = False
-
-        self.fall_time += dt
-        if self.fall_time >= self.fall_speed:
-            self.fall_time = 0
-
-            # Move the piece down
-            if self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y + 1):
-                self.current_piece.y += 1
-            else:
-                # Place the piece on the grid
-                self.add_to_grid(self.current_piece)
-                self.clear_lines()
-                self.pieces_since_question += 1
-
-                # Get new piece
-                self.current_piece = self.next_piece
-                self.next_piece = self.new_piece()
-
-                # Trigger math question every 5 pieces
-                if self.pieces_since_question >= 5:
-                    self.math_problem.reset()
-                    self.math_question_active = True
-                    self.pieces_since_question = 0
-                else:
-                    self.math_question_active = False
+                self.state = "playing"
                 self.piece_locked = False
+        elif self.state == "math_challenge":
+            self.piece_locked = True
+        elif self.state == "playing":
+            self.piece_locked = False
+            self.fall_time += dt
+            if self.fall_time >= self.fall_speed:
+                self.fall_time = 0
+                if self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y + 1):
+                    self.current_piece.y += 1
+                else:
+                    self.add_to_grid(self.current_piece)
+                    self.clear_lines()
+                    self.pieces_since_question += 1
+                    self.current_piece = self.next_piece
+                    self.next_piece = self.new_piece()
+                    if self.pieces_since_question >= 5:
+                        self.trigger_math_challenge()
+                        self.pieces_since_question = 0
+                    if not self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y):
+                        self.state = "game_over"
+                        self.game_over = True
 
-                # Check if game is over
-                if not self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y):
-                    self.game_over = True
-    
     def run(self):
         running = True
+        score_saved = False  # Track if score has been saved for this game over
         while running:
             self.clock.tick(60)
             now = pygame.time.get_ticks()
             for event in pygame.event.get():
+                if self.debug:
+                    print(f"EVENT: {event}")
                 if event.type == pygame.QUIT:
                     running = False
                 elif event.type == pygame.KEYDOWN:
-                    if not self.game_over:
-                        if self.math_question_active:
-                            # Math input only
-                            if event.key == pygame.K_0:
-                                self.math_problem.add_digit("0")
-                            elif event.key == pygame.K_1:
-                                self.math_problem.add_digit("1")
-                            elif event.key == pygame.K_2:
-                                self.math_problem.add_digit("2")
-                            elif event.key == pygame.K_3:
-                                self.math_problem.add_digit("3")
-                            elif event.key == pygame.K_4:
-                                self.math_problem.add_digit("4")
-                            elif event.key == pygame.K_5:
-                                self.math_problem.add_digit("5")
-                            elif event.key == pygame.K_6:
-                                self.math_problem.add_digit("6")
-                            elif event.key == pygame.K_7:
-                                self.math_problem.add_digit("7")
-                            elif event.key == pygame.K_8:
-                                self.math_problem.add_digit("8")
-                            elif event.key == pygame.K_9:
-                                self.math_problem.add_digit("9")
-                            elif event.key == pygame.K_BACKSPACE:
-                                self.math_problem.remove_digit()
-                            elif event.key == pygame.K_RETURN:
-                                if self.math_problem.user_answer:
-                                    if self.math_problem.check_answer(self.math_problem.user_answer):
-                                        self.math_question_active = False
-                                        self.correct_answers += 1
-                                        self.show_math_feedback = True
-                                        self.math_feedback_time = 1.0
-                                    else:
-                                        self.show_math_feedback = True
-                                        self.math_feedback_time = 1.0
-                        else:
-                            # Movement input
-                            if event.key == pygame.K_LEFT:
-                                self.move_left_pressed = True
-                                self.last_move_time = now
-                                self.last_dir = -1
-                                self.move_piece(-1)
-                            elif event.key == pygame.K_RIGHT:
-                                self.move_right_pressed = True
-                                self.last_move_time = now
-                                self.last_dir = 1
-                                self.move_piece(1)
-                            elif event.key == pygame.K_DOWN:
-                                self.soft_drop()
-                            elif event.key == pygame.K_UP:
-                                self.rotate_piece()
-                            elif event.key == pygame.K_SPACE:
-                                # Hard drop
-                                while self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y + 1):
-                                    self.current_piece.y += 1
-                                    self.score += 1
-                            elif event.key == pygame.K_c or event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:
-                                self.hold_current_piece()
-                    else:
+                    if self.debug:
+                        print(f"KEYDOWN: {pygame.key.name(event.key)} (unicode: {getattr(event, 'unicode', '')}) state: {self.state}")
+                    if self.state == "math_challenge":
+                        if event.key in [pygame.K_0, pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9]:
+                            self.math_problem.add_digit(event.unicode)
+                        elif event.key == pygame.K_BACKSPACE:
+                            self.math_problem.remove_digit()
+                        elif event.key == pygame.K_RETURN:
+                            if self.math_problem.user_answer:
+                                correct = self.math_problem.check_answer(self.math_problem.user_answer)
+                                if correct:
+                                    self.correct_answers += 1
+                                    self.feedback_message = "Correct!"
+                                    self.feedback_color = ACCENT_COLOR
+                                else:
+                                    self.feedback_message = f"Wrong! Answer: {self.math_problem.answer}"
+                                    self.feedback_color = WARNING_COLOR
+                                self.state = "feedback"
+                                self.math_feedback_time = 1.2
+                    elif self.state == "playing":
+                        if event.key == pygame.K_LEFT or event.key == pygame.K_a:
+                            self.move_left_pressed = True
+                            self.last_move_time = now
+                            self.last_dir = -1
+                            self.move_piece(-1)
+                        elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
+                            self.move_right_pressed = True
+                            self.last_move_time = now
+                            self.last_dir = 1
+                            self.move_piece(1)
+                        elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                            self.move_down_pressed = True
+                            self.soft_drop()
+                        elif event.key == pygame.K_UP or event.key == pygame.K_w:
+                            self.rotate_piece()
+                        elif event.key == pygame.K_SPACE:
+                            # Hard drop
+                            while self.valid_move(self.current_piece, self.current_piece.x, self.current_piece.y + 1):
+                                self.current_piece.y += 1
+                                self.score += 1
+                        elif event.key == pygame.K_c or event.key == pygame.K_LSHIFT or event.key == pygame.K_RSHIFT:
+                            self.hold_current_piece()
+                    elif self.state == "game_over":
                         if event.key == pygame.K_r:
                             self.reset_game()
+                            self.state = "playing"
+                            score_saved = False
                     if event.key == pygame.K_ESCAPE:
                         running = False
                 elif event.type == pygame.KEYUP:
-                    if event.key == pygame.K_LEFT:
-                        self.move_left_pressed = False
-                    elif event.key == pygame.K_RIGHT:
-                        self.move_right_pressed = False
+                    if self.debug:
+                        print(f"KEYUP: {pygame.key.name(event.key)} state: {self.state}")
+                    if self.state == "playing":
+                        if event.key == pygame.K_LEFT or event.key == pygame.K_a:
+                            self.move_left_pressed = False
+                        elif event.key == pygame.K_RIGHT or event.key == pygame.K_d:
+                            self.move_right_pressed = False
+                        elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                            self.move_down_pressed = False
             # Key repeat logic
-            if not self.math_question_active and (self.move_left_pressed or self.move_right_pressed):
-                if now - self.last_move_time > self.move_delay:
-                    if now % self.move_interval < 16:
-                        self.move_piece(self.last_dir)
+            if self.state == "playing":
+                if self.move_left_pressed or self.move_right_pressed:
+                    if now - self.last_move_time > self.move_delay:
+                        if now % self.move_interval < 16:
+                            self.move_piece(self.last_dir)
+                if self.move_down_pressed:
+                    self.soft_drop()
+            if self.debug:
+                print(f"move_left_pressed: {self.move_left_pressed}, move_right_pressed: {self.move_right_pressed}, move_down_pressed: {getattr(self, 'move_down_pressed', False)}")
             self.update(self.clock.get_time() / 1000.0)
             self.draw_grid()
+            if self.state == "math_challenge":
+                self.show_math_modal()
+            elif self.state == "feedback":
+                self.show_feedback_modal()
             pygame.display.flip()
+            if self.state == "game_over" and not score_saved:
+                self.save_score()
+                score_saved = True
         pygame.quit()
     
     def move_piece(self, dx):
+        print(f"move_piece called: dx={dx}, piece_locked={self.piece_locked}, state={self.state}")
         if not self.piece_locked:
             new_x = self.current_piece.x + dx
+            print(f"Trying to move to x={new_x}")
             if self.valid_move(self.current_piece, new_x, self.current_piece.y):
+                print(f"Move valid. Moving piece from x={self.current_piece.x} to x={new_x}")
                 self.current_piece.x = new_x
-    
+            else:
+                print("Move invalid.")
+        else:
+            print("Piece is locked, cannot move.")
+
     def soft_drop(self):
+        print(f"soft_drop called: piece_locked={self.piece_locked}, state={self.state}")
         if not self.piece_locked:
             new_y = self.current_piece.y + 1
+            print(f"Trying to move to y={new_y}")
             if self.valid_move(self.current_piece, self.current_piece.x, new_y):
+                print(f"Move valid. Moving piece from y={self.current_piece.y} to y={new_y}")
                 self.current_piece.y = new_y
+            else:
+                print("Move invalid.")
+        else:
+            print("Piece is locked, cannot soft drop.")
     
     def rotate_piece(self):
         if not self.piece_locked and self.current_piece.shape is not None:
@@ -578,6 +660,28 @@ class TetrisGame:
             self.math_problem.difficulty = 3
         else:
             self.math_problem.difficulty = 4
+
+    def save_score(self):
+        # Save high score to scores/tetris_math_scores.json
+        if not os.path.exists("scores"):
+            os.makedirs("scores")
+        score_file = "scores/tetris_math_scores.json"
+        scores = []
+        if os.path.exists(score_file):
+            try:
+                with open(score_file, 'r') as f:
+                    scores = json.load(f)
+            except Exception:
+                scores = []
+        entry = {
+            "name": self.player_name,
+            "score": self.score,
+            "level": self.level,
+            "lines_cleared": self.lines_cleared
+        }
+        scores.append(entry)
+        with open(score_file, 'w') as f:
+            json.dump(scores, f)
 
 # Main game function
 def main():
