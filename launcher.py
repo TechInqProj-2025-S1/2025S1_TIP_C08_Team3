@@ -193,7 +193,17 @@ def show_game_high_scores(game):
             # Sort scores by value, highest first
             sorted_scores = sorted(scores, key=lambda x: x["score"], reverse=True)
             for i, score in enumerate(sorted_scores[:10]):  # Show top 10
-                score_text = SCORE_FONT.render(f"{i+1}. {score['name']}: {score['score']} (Difficulty: {score['difficulty']})", True, TEXT_COLOR)
+                # For Tetris Math, show level instead of difficulty if missing
+                difficulty = score.get('difficulty')
+                if difficulty is None:
+                    # Try to use 'level' or fallback to 'lines_cleared'
+                    if 'level' in score:
+                        difficulty = f"Level {score['level']}"
+                    elif 'lines_cleared' in score:
+                        difficulty = f"Lines {score['lines_cleared']}"
+                    else:
+                        difficulty = "N/A"
+                score_text = SCORE_FONT.render(f"{i+1}. {score['name']}: {score['score']} (Difficulty: {difficulty})", True, TEXT_COLOR)
                 screen.blit(score_text, (SCREEN_WIDTH//2 - 250, 180 + 50*i))
         
         # Back button
