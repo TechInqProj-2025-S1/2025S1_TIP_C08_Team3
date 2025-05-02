@@ -1,0 +1,323 @@
+import pygame
+from .constants import (
+    BG_COLOR, PRIMARY_COLOR, ACCENT_COLOR, GREEN, PURPLE, WHITE, BLACK, TITLE_FONT, BODY_FONT, SCORE_FONT, TEXT_COLOR
+)
+from .tetris import TetrisGame
+
+class Button:
+    def __init__(self, rect, text, color, hover_color, font, text_color=BLACK):
+        self.rect = pygame.Rect(rect)
+        self.text = text
+        self.color = color
+        self.hover_color = hover_color
+        self.font = font
+        self.text_color = text_color
+        self.hovered = False
+    def draw(self, surface):
+        pygame.draw.rect(surface, self.hover_color if self.hovered else self.color, self.rect, border_radius=10)
+        text_surf = self.font.render(self.text, True, self.text_color)
+        text_rect = text_surf.get_rect(center=self.rect.center)
+        surface.blit(text_surf, text_rect)
+    def update(self, mouse_pos):
+        self.hovered = self.rect.collidepoint(mouse_pos)
+    def is_clicked(self, mouse_pos, mouse_click):
+        return self.rect.collidepoint(mouse_pos) and mouse_click
+
+class TetrisMathUI:
+    def __init__(self):
+        pygame.init()
+        info = pygame.display.Info()
+        self.screen_width, self.screen_height = info.current_w, info.current_h
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.FULLSCREEN)
+        pygame.display.set_caption("Tetris Math")
+        self.clock = pygame.time.Clock()
+        self.state = 'menu'  # menu, playing, game_over
+        self.name = ''
+        self.difficulty = None
+        self.menu_buttons = []
+        self.init_menu_buttons()
+        self.tetris_game = None
+        self.running = True
+    def init_menu_buttons(self):
+        font = BODY_FONT
+        sw, sh = self.screen_width, self.screen_height
+        self.basic_btn = Button((sw//2-180, sh//2-60, 150, 60), "Basic", GREEN, (0,200,0), font, text_color=BLACK)
+        self.master_btn = Button((sw//2+30, sh//2-60, 150, 60), "Master", PURPLE, (120,0,120), font, text_color=WHITE)
+        self.back_btn = Button((sw//2-100, sh//2+40, 200, 50), "Back to Menu", ACCENT_COLOR, PRIMARY_COLOR, font, text_color=BLACK)
+        self.menu_buttons = [self.basic_btn, self.master_btn, self.back_btn]
+    def run(self):
+        from .constants import ACCENT_COLOR, WARNING_COLOR
+        import random
+        while self.running:
+            self.clock.tick(60)
+            mouse_pos = pygame.mouse.get_pos()
+            mouse_click = False
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.running = False
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse_click = True
+                if self.state == 'menu':
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_BACKSPACE:
+                            self.name = self.name[:-1]
+                        elif len(self.name) < 12 and event.unicode.isprintable():
+                            self.name += event.unicode
+                        elif event.key == pygame.K_RETURN and self.name and self.difficulty:
+                            self.start_game()
+                elif self.state == 'playing':
+                    if self.tetris_game:
+                        if event.type == pygame.KEYDOWN:
+                            if self.tetris_game.state == 'math_challenge':
+                                if event.unicode.isdigit():
+                                    self.tetris_game.math.add_digit(event.unicode)
+                                elif event.key == pygame.K_BACKSPACE:
+                                    self.tetris_game.math.remove_digit()
+                                elif event.key == pygame.K_RETURN:
+                                    if self.tetris_game.math.user_answer:
+                                        correct = self.tetris_game.math.check_answer(self.tetris_game.math.user_answer)
+                                        if correct:
+                                            self.tetris_game.correct_answers += 1
+                                            object.__setattr__(self.tetris_game, 'feedback_message', "Correct!")
+                                            object.__setattr__(self.tetris_game, 'feedback_color', ACCENT_COLOR)
+                                            self.tetris_game.state = "feedback"
+                                            self.tetris_game.math_feedback_time = 1.2
+                                        else:
+                                            object.__setattr__(self.tetris_game, 'feedback_message', f"Wrong! Answer: {self.tetris_game.math.answer}")
+                                            object.__setattr__(self.tetris_game, 'feedback_color', WARNING_COLOR)
+                                            self.tetris_game.state = "feedback"
+                                            self.tetris_game.math_feedback_time = 1.2
+                                            # Drop the piece randomly
+                                            piece = self.tetris_game.current_piece
+                                            grid_w = self.tetris_game.grid_width
+                                            if piece.shape is not None:
+                                                piece_width = len(piece.shape[0])
+                                                valid_xs = []
+                                                for x in range(grid_w - piece_width + 1):
+                                                    if self.tetris_game.valid_move(piece, x, 0):
+                                                        valid_xs.append(x)
+                                                if valid_xs:
+                                                    piece.x = random.choice(valid_xs)
+                                                    piece.y = 0
+                                                    while self.tetris_game.valid_move(piece, piece.x, piece.y + 1):
+                                                        piece.y += 1
+                                                    self.tetris_game.add_to_grid(piece)
+                                                    self.tetris_game.clear_lines()
+                                                    self.tetris_game.current_piece = self.tetris_game.next_piece
+                                                    self.tetris_game.next_piece = self.tetris_game.new_piece()
+                                                    self.tetris_game.pieces_since_question += 1
+                                                    self.tetris_game.lock_pending = False
+                                                    self.tetris_game.lock_timer = 0
+                                                    if not self.tetris_game.valid_move(self.tetris_game.current_piece, self.tetris_game.current_piece.x, self.tetris_game.current_piece.y):
+                                                        self.tetris_game.set_state("game_over")
+                                                        self.tetris_game.game_over = True
+                            elif self.tetris_game.state == 'playing':
+                                if event.key in (pygame.K_LEFT, pygame.K_a):
+                                    self.tetris_game.move_left_pressed = True
+                                    self.tetris_game.last_move_time = pygame.time.get_ticks()
+                                    self.tetris_game.last_dir = -1
+                                    self.tetris_game.move_piece(-1)
+                                elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                                    self.tetris_game.move_right_pressed = True
+                                    self.tetris_game.last_move_time = pygame.time.get_ticks()
+                                    self.tetris_game.last_dir = 1
+                                    self.tetris_game.move_piece(1)
+                                elif event.key in (pygame.K_DOWN, pygame.K_s):
+                                    self.tetris_game.move_down_pressed = True
+                                    self.tetris_game.soft_drop()
+                                elif event.key in (pygame.K_UP, pygame.K_w):
+                                    self.tetris_game.rotate_piece()
+                                    self.tetris_game.last_move_time = pygame.time.get_ticks()
+                                elif event.key == pygame.K_SPACE:
+                                    while self.tetris_game.valid_move(self.tetris_game.current_piece, self.tetris_game.current_piece.x, self.tetris_game.current_piece.y + 1):
+                                        self.tetris_game.current_piece.y += 1
+                                        self.tetris_game.score += 1
+                                elif event.key in (pygame.K_c, pygame.K_LSHIFT, pygame.K_RSHIFT):
+                                    self.tetris_game.hold_current_piece()
+                                elif event.key == pygame.K_ESCAPE:
+                                    self.state = 'menu'
+                                    self.tetris_game = None
+                                elif event.key == pygame.K_r and self.tetris_game.game_over:
+                                    self.start_game()
+                        elif event.type == pygame.KEYUP:
+                            if self.tetris_game.state == 'playing':
+                                if event.key in (pygame.K_LEFT, pygame.K_a):
+                                    self.tetris_game.move_left_pressed = False
+                                elif event.key in (pygame.K_RIGHT, pygame.K_d):
+                                    self.tetris_game.move_right_pressed = False
+                                elif event.key in (pygame.K_DOWN, pygame.K_s):
+                                    self.tetris_game.move_down_pressed = False
+                elif self.state == 'game_over':
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_r:
+                            self.start_game()
+            if self.state == 'menu':
+                self.draw_menu(mouse_pos, mouse_click)
+            elif self.state == 'playing':
+                if self.tetris_game:
+                    self.tetris_game.run_ui(self)
+                    self.draw_game()
+                    if self.tetris_game.game_over:
+                        self.state = 'game_over'
+            elif self.state == 'game_over':
+                self.draw_game_over(mouse_pos, mouse_click)
+            pygame.display.flip()
+    def draw_menu(self, mouse_pos, mouse_click):
+        self.screen.fill(BG_COLOR)
+        sw, sh = self.screen_width, self.screen_height
+        title = TITLE_FONT.render("Tetris Math", True, PRIMARY_COLOR)
+        self.screen.blit(title, (sw//2-title.get_width()//2, sh//8))
+        prompt = BODY_FONT.render("Enter your name:", True, TEXT_COLOR)
+        self.screen.blit(prompt, (sw//2-prompt.get_width()//2, sh//4))
+        input_box = pygame.Rect(sw//2-150, sh//4+50, 300, 50)
+        pygame.draw.rect(self.screen, WHITE, input_box, 2, border_radius=8)
+        name_surface = BODY_FONT.render(self.name, True, BLACK)
+        name_rect = name_surface.get_rect(center=input_box.center)
+        self.screen.blit(name_surface, name_rect)
+        diff_text = SCORE_FONT.render("Choose difficulty:", True, TEXT_COLOR)
+        self.screen.blit(diff_text, (sw//2-diff_text.get_width()//2, sh//4+120))
+        for btn in self.menu_buttons:
+            btn.update(mouse_pos)
+        self.basic_btn.draw(self.screen)
+        self.master_btn.draw(self.screen)
+        self.back_btn.draw(self.screen)
+        if self.basic_btn.is_clicked(mouse_pos, mouse_click):
+            self.difficulty = 'basic'
+        if self.master_btn.is_clicked(mouse_pos, mouse_click):
+            self.difficulty = 'master'
+        if self.back_btn.is_clicked(mouse_pos, mouse_click):
+            self.running = False
+        if self.difficulty == 'basic':
+            pygame.draw.rect(self.screen, (0,255,0), self.basic_btn.rect, 4, border_radius=10)
+        elif self.difficulty == 'master':
+            pygame.draw.rect(self.screen, (155,89,182), self.master_btn.rect, 4, border_radius=10)
+        instr = SCORE_FONT.render("Press Enter to start", True, TEXT_COLOR)
+        self.screen.blit(instr, (sw//2-instr.get_width()//2, sh//4+200))
+    def start_game(self):
+        self.tetris_game = TetrisGame(player_name=self.name, difficulty_mode=self.difficulty)
+        self.state = 'playing'
+    def draw_game(self):
+        if not self.tetris_game:
+            return
+        from .constants import GRAY
+        sw, sh = self.screen_width, self.screen_height
+        grid_height = self.tetris_game.grid_height
+        grid_width = self.tetris_game.grid_width
+        # Calculate grid size and position adaptively
+        max_grid_h = int(sh * 0.8)
+        max_grid_w = int(sw * 0.5)
+        grid_size = min(max_grid_h // grid_height, max_grid_w // grid_width)
+        grid_total_w = grid_width * grid_size
+        grid_total_h = grid_height * grid_size
+        grid_left = max(60, (sw - grid_total_w - 260) // 2)
+        grid_top = max(60, (sh - grid_total_h) // 2)
+        self.screen.fill(BG_COLOR)
+        for y in range(grid_height):
+            for x in range(grid_width):
+                pygame.draw.rect(self.screen, GRAY,
+                                 (grid_left + x * grid_size,
+                                  grid_top + y * grid_size,
+                                  grid_size, grid_size), 1)
+                if self.tetris_game.grid[y][x]:
+                    pygame.draw.rect(self.screen, self.tetris_game.grid[y][x],
+                                     (grid_left + x * grid_size + 1,
+                                      grid_top + y * grid_size + 1,
+                                      grid_size - 2, grid_size - 2))
+        # Draw ghost piece (drop shadow)
+        piece = self.tetris_game.current_piece
+        if piece and piece.shape:
+            ghost_x, ghost_y = self.tetris_game.get_ghost_piece_position()
+            ghost_color = piece.color
+            ghost_surface = pygame.Surface((grid_size, grid_size), pygame.SRCALPHA)
+            ghost_surface.fill((*ghost_color[:3], 70))  # semi-transparent
+            for i, row in enumerate(piece.shape):
+                for j, cell in enumerate(row):
+                    if cell:
+                        gx = grid_left + (ghost_x + j) * grid_size + 1
+                        gy = grid_top + (ghost_y + i) * grid_size + 1
+                        self.screen.blit(ghost_surface, (gx, gy))
+        # Draw current piece (on top of ghost)
+        if piece and piece.shape:
+            for i, row in enumerate(piece.shape):
+                for j, cell in enumerate(row):
+                    if cell:
+                        pygame.draw.rect(self.screen, piece.color,
+                                         (grid_left + (piece.x + j) * grid_size + 1,
+                                          grid_top + (piece.y + i) * grid_size + 1,
+                                          grid_size - 2, grid_size - 2))
+        # Sidebar
+        sidebar_left = grid_left + grid_total_w + 40
+        sidebar_top = grid_top
+        sidebar_w = min(320, sw - sidebar_left - 40)
+        sidebar_h = grid_total_h
+        sidebar_rect = pygame.Rect(sidebar_left, sidebar_top, sidebar_w, sidebar_h)
+        pygame.draw.rect(self.screen, WHITE, sidebar_rect, border_radius=18)
+        pygame.draw.rect(self.screen, PRIMARY_COLOR, sidebar_rect, 3, border_radius=18)
+        y_offset = sidebar_top + 30
+        spacing = 50
+        score_text = SCORE_FONT.render(f"Score: {self.tetris_game.score}", True, TEXT_COLOR)
+        self.screen.blit(score_text, (sidebar_left + (sidebar_w - score_text.get_width()) // 2, y_offset))
+        y_offset += spacing
+        level_text = SCORE_FONT.render(f"Level: {self.tetris_game.level}", True, TEXT_COLOR)
+        self.screen.blit(level_text, (sidebar_left + (sidebar_w - level_text.get_width()) // 2, y_offset))
+        y_offset += spacing
+        lines_text = SCORE_FONT.render(f"Lines: {self.tetris_game.lines_cleared}", True, TEXT_COLOR)
+        self.screen.blit(lines_text, (sidebar_left + (sidebar_w - lines_text.get_width()) // 2, y_offset))
+        y_offset += spacing
+        math_score_text = SCORE_FONT.render(f"Math Answers: {self.tetris_game.correct_answers}", True, TEXT_COLOR)
+        self.screen.blit(math_score_text, (sidebar_left + (sidebar_w - math_score_text.get_width()) // 2, y_offset))
+        if self.tetris_game.state == "math_challenge":
+            self.draw_math_overlay()
+        elif self.tetris_game.state == "feedback":
+            self.draw_feedback_overlay()
+
+    def draw_math_overlay(self):
+        if not self.tetris_game:
+            return
+        sw, sh = self.screen_width, self.screen_height
+        modal_w, modal_h = min(500, sw * 0.6), min(220, sh * 0.3)
+        modal_x = (sw - modal_w) // 2
+        modal_y = (sh - modal_h) // 2
+        modal_rect = pygame.Rect(modal_x, modal_y, modal_w, modal_h)
+        pygame.draw.rect(self.screen, WHITE, modal_rect, border_radius=16)
+        pygame.draw.rect(self.screen, PRIMARY_COLOR, modal_rect, 4, border_radius=16)
+        eq_text = BODY_FONT.render(f"{self.tetris_game.math.equation}", True, TEXT_COLOR)
+        self.screen.blit(eq_text, (modal_x + (modal_w - eq_text.get_width()) // 2, modal_y + 30))
+        ans_text = BODY_FONT.render(self.tetris_game.math.user_answer or "_", True, ACCENT_COLOR)
+        self.screen.blit(ans_text, (modal_x + (modal_w - ans_text.get_width()) // 2, modal_y + 80))
+        instr = SCORE_FONT.render("Type answer and press Enter", True, TEXT_COLOR)
+        self.screen.blit(instr, (modal_x + (modal_w - instr.get_width()) // 2, modal_y + 140))
+        # No Back to Menu button in math overlay
+
+    def draw_feedback_overlay(self):
+        if not self.tetris_game:
+            return
+        sw, sh = self.screen_width, self.screen_height
+        modal_w, modal_h = min(400, sw * 0.4), min(120, sh * 0.2)
+        modal_x = (sw - modal_w) // 2
+        modal_y = (sh - modal_h) // 2
+        modal_rect = pygame.Rect(modal_x, modal_y, modal_w, modal_h)
+        pygame.draw.rect(self.screen, WHITE, modal_rect, border_radius=16)
+        pygame.draw.rect(self.screen, self.tetris_game.feedback_color, modal_rect, 4, border_radius=16)
+        msg = BODY_FONT.render(self.tetris_game.feedback_message, True, self.tetris_game.feedback_color)
+        self.screen.blit(msg, (modal_x + (modal_w - msg.get_width()) // 2, modal_y + (modal_h - msg.get_height()) // 2))
+        # No Back to Menu button in feedback overlay
+
+    def draw_game_over(self, mouse_pos, mouse_click):
+        self.screen.fill(BG_COLOR)
+        font = pygame.font.SysFont('Arial', 60, bold=True)
+        game_over_text = font.render("GAME OVER", True, (231, 76, 60))
+        text_rect = game_over_text.get_rect(center=(self.screen_width // 2, self.screen_height // 2 - 60))
+        self.screen.blit(game_over_text, text_rect)
+        score_text = BODY_FONT.render(f"Score: {self.tetris_game.score if self.tetris_game else 0}", True, TEXT_COLOR)
+        self.screen.blit(score_text, (self.screen_width // 2 - score_text.get_width() // 2, self.screen_height // 2 + 10))
+        restart_text = BODY_FONT.render("Press R to Restart", True, TEXT_COLOR)
+        self.screen.blit(restart_text, (self.screen_width // 2 - restart_text.get_width() // 2, self.screen_height // 2 + 60))
+        self.back_btn.rect.topleft = (self.screen_width // 2 - 100, self.screen_height // 2 + 120)
+        self.back_btn.draw(self.screen)
+        self.back_btn.update(mouse_pos)
+        if self.back_btn.is_clicked(mouse_pos, mouse_click):
+            self.state = 'menu'
+            self.name = ''
+            self.difficulty = None
+            self.tetris_game = None

@@ -29,8 +29,10 @@ SUBTITLE_FONT = pygame.font.SysFont('arial', 36, bold=True)
 BODY_FONT = pygame.font.SysFont('arial', 32)
 SCORE_FONT = pygame.font.SysFont('arial', 28)
 
-# Create the screen
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+# Create the screen in FULLSCREEN mode and get actual monitor size
+info = pygame.display.Info()
+SCREEN_WIDTH, SCREEN_HEIGHT = info.current_w, info.current_h
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption(TITLE)
 clock = pygame.time.Clock()
 
@@ -77,29 +79,17 @@ class Game:
     def launch(self):
         try:
             # Dynamic import of the game module
-            module_path = f"games.{self.module_name}"
-            if '.' in self.module_name:
-                module_path = f"games.{self.module_name}"
-            else:
-                module_path = f"games.{self.module_name}.{self.module_name}"
-            game_module = __import__(module_path, fromlist=[self.module_name])
-            
-            # Use provided class_name if specified
-            game_class_name = self.class_name or self.module_name.capitalize()
-            if hasattr(game_module, game_class_name):
-                game_class = getattr(game_module, game_class_name)
-                game_instance = game_class()
-                game_instance.run()
-            # Fall back to function-based approach
-            elif hasattr(game_module, 'run_game'):
-                game_module.run_game()
-            else:
-                print(f"Could not find a way to run {self.name}")
-                return False
-        except (ImportError, AttributeError) as e:
+            if self.name == "Tetris Math":
+                # Entry point
+                from games.TetrisMath.main import main as tetris_main
+                tetris_main()
+                return True
+            # Placeholder
+            print(f"{self.name} is a placeholder.")
+            return False
+        except Exception as e:
             print(f"Error launching game {self.name}: {e}")
             return False
-        return True
 
 def get_high_scores(game_name):
     score_file = f"scores/{game_name.lower().replace(' ', '_')}_scores.json"
@@ -229,7 +219,7 @@ def main():
     # Create buttons for each game
     buttons = []
     num_cols = 2
-    num_rows = (len(games) + 1) // 2
+    # num_rows = (len(games) + 1) // 2  # Unused, remove to clean up
     button_width = 300
     button_height = 120
     h_gap = 80
