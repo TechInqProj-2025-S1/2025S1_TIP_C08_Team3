@@ -40,6 +40,12 @@ coverage.xml
 .hypothesis/
 .pytest_cache/
 
+# Test output
+test_output.txt
+
+# Ignore scores
+scores/*.json
+
 # Translations
 *.mo
 *.pot

@@ -15,22 +15,26 @@ TITLE = "Team 3 Launcher"
 FPS = 60
 
 # THEME CONSTANTS
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
 PRIMARY_COLOR = (52, 152, 219)  # Blue
 SECONDARY_COLOR = (41, 128, 185)  # Darker Blue
 ACCENT_COLOR = (46, 204, 113)  # Green
 WARNING_COLOR = (231, 76, 60)  # Red
 BG_COLOR = (236, 240, 241)  # Light Gray
 TEXT_COLOR = (44, 62, 80)  # Dark Gray
-BUTTON_COLOR = PRIMARY_COLOR
-BUTTON_HOVER_COLOR = SECONDARY_COLOR
+BUTTON_COLOR = (102, 187, 239)  # #66bbef
+BUTTON_HOVER_COLOR = (82, 167, 219)  # Slightly darker for hover
 BUTTON_TEXT_COLOR = (255, 255, 255)
 TITLE_FONT = pygame.font.SysFont('arial', 60, bold=True)
 SUBTITLE_FONT = pygame.font.SysFont('arial', 36, bold=True)
 BODY_FONT = pygame.font.SysFont('arial', 32)
 SCORE_FONT = pygame.font.SysFont('arial', 28)
 
-# Create the screen
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+# Create the screen in FULLSCREEN mode and get actual monitor size
+info = pygame.display.Info()
+SCREEN_WIDTH, SCREEN_HEIGHT = info.current_w, info.current_h
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.FULLSCREEN)
 pygame.display.set_caption(TITLE)
 clock = pygame.time.Clock()
 
@@ -77,29 +81,17 @@ class Game:
     def launch(self):
         try:
             # Dynamic import of the game module
-            module_path = f"games.{self.module_name}"
-            if '.' in self.module_name:
-                module_path = f"games.{self.module_name}"
-            else:
-                module_path = f"games.{self.module_name}.{self.module_name}"
-            game_module = __import__(module_path, fromlist=[self.module_name])
-            
-            # Use provided class_name if specified
-            game_class_name = self.class_name or self.module_name.capitalize()
-            if hasattr(game_module, game_class_name):
-                game_class = getattr(game_module, game_class_name)
-                game_instance = game_class()
-                game_instance.run()
-            # Fall back to function-based approach
-            elif hasattr(game_module, 'run_game'):
-                game_module.run_game()
-            else:
-                print(f"Could not find a way to run {self.name}")
-                return False
-        except (ImportError, AttributeError) as e:
+            if self.name == "Tetris Math":
+                # Entry point
+                from games.TetrisMath.main import main as tetris_main
+                tetris_main()
+                return True
+            # Placeholder
+            print(f"{self.name} is a placeholder.")
+            return False
+        except Exception as e:
             print(f"Error launching game {self.name}: {e}")
             return False
-        return True
 
 def get_high_scores(game_name):
     score_file = f"scores/{game_name.lower().replace(' ', '_')}_scores.json"
@@ -229,7 +221,7 @@ def main():
     # Create buttons for each game
     buttons = []
     num_cols = 2
-    num_rows = (len(games) + 1) // 2
+    # num_rows = (len(games) + 1) // 2  # Unused, remove to clean up
     button_width = 300
     button_height = 120
     h_gap = 80
@@ -244,49 +236,144 @@ def main():
         buttons.append((Button(x, y, button_width, button_height, game.name, font_size=40), game))
     
     # Create a single high scores button
-    high_scores_button = Button(SCREEN_WIDTH//2 - 150, 850, 300, 60, "High Scores", color=ACCENT_COLOR, hover_color=PRIMARY_COLOR)
+    high_scores_button = Button(SCREEN_WIDTH//2 - 310, 850, 300, 60, "High Scores", color=BUTTON_COLOR, hover_color=BUTTON_HOVER_COLOR, text_color=BUTTON_TEXT_COLOR)
+    settings_button = Button(SCREEN_WIDTH//2 + 10, 850, 300, 60, "Settings", color=BUTTON_COLOR, hover_color=BUTTON_HOVER_COLOR, text_color=BUTTON_TEXT_COLOR)
     exit_button = Button(SCREEN_WIDTH//2 - 150, 930, 300, 60, "Exit", color=WARNING_COLOR, hover_color=SECONDARY_COLOR)
     
+    # Ensure config.json exists
+    config_path = os.path.join(os.getcwd(), "config.json")
+    if not os.path.exists(config_path):
+        with open(config_path, "w") as f:
+            json.dump({"launcher": {}, "games": {}}, f, indent=2)
+
+    def show_settings_menu():
+        running = True
+        # Load config
+        with open(config_path, "r") as f:
+            config = json.load(f)
+        font = BODY_FONT
+        # Multiplayer Tetris Math settings
+        tetris_multiplayer = config.get("games", {}).get("tetris_math_multiplayer", {})
+        host_ip = tetris_multiplayer.get("host_ip", "127.0.0.1")
+        host_port = str(tetris_multiplayer.get("host_port", "5000"))
+        input_active = None
+        back_button = Button(SCREEN_WIDTH//2 - 150, SCREEN_HEIGHT - 120, 300, 60, "Back", color=BUTTON_COLOR, hover_color=BUTTON_HOVER_COLOR, text_color=BUTTON_TEXT_COLOR)
+        ip_box = pygame.Rect(SCREEN_WIDTH//2 - 180, 350, 200, 50)
+        port_box = pygame.Rect(SCREEN_WIDTH//2 + 40, 350, 120, 50)
+        while running:
+            screen.fill(BG_COLOR)
+            title = TITLE_FONT.render("Settings", True, TEXT_COLOR)
+            screen.blit(title, (SCREEN_WIDTH//2 - title.get_width()//2, 60))
+            y = 180
+            # General launcher settings
+            launcher_label = font.render("Launcher Settings", True, PRIMARY_COLOR)
+            screen.blit(launcher_label, (SCREEN_WIDTH//2 - launcher_label.get_width()//2, y))
+            y += 50
+            # Placeholder for launcher settings
+            launcher_setting = font.render("(No settings yet)", True, TEXT_COLOR)
+            screen.blit(launcher_setting, (SCREEN_WIDTH//2 - launcher_setting.get_width()//2, y))
+            y += 80
+            # Tetris Math Multiplayer settings
+            tetris_label = font.render("Tetris Math Multiplayer", True, ACCENT_COLOR)
+            screen.blit(tetris_label, (SCREEN_WIDTH//2 - tetris_label.get_width()//2, y))
+            y += 40
+            ip_label = font.render("Host IP:", True, TEXT_COLOR)
+            port_label = font.render("Host Port:", True, TEXT_COLOR)
+            # Draw IP and Port labels and boxes with more vertical spacing to avoid overlap
+            screen.blit(ip_label, (SCREEN_WIDTH//2 - 220, 360))
+            screen.blit(port_label, (SCREEN_WIDTH//2 + 10, 360))
+            pygame.draw.rect(screen, WHITE, ip_box, 2, border_radius=8)
+            pygame.draw.rect(screen, WHITE, port_box, 2, border_radius=8)
+            ip_surf = font.render(host_ip, True, BLACK)
+            port_surf = font.render(host_port, True, BLACK)
+            screen.blit(ip_surf, (ip_box.x + 10, ip_box.y + 10))
+            screen.blit(port_surf, (port_box.x + 10, port_box.y + 10))
+            # Instructions
+            instr = SCORE_FONT.render("Set IP/Port for LAN play. Host: share your IP/port. Join: enter host's IP/port.", True, TEXT_COLOR)
+            screen.blit(instr, (SCREEN_WIDTH//2 - instr.get_width()//2, 430))
+            # Per-game settings placeholders
+            y = 530  # Increased from 500 to 530 for more space
+            for game in games:
+                if game.name != "Tetris Math":
+                    game_label = font.render(f"{game.name} Settings", True, ACCENT_COLOR)
+                    screen.blit(game_label, (SCREEN_WIDTH//2 - game_label.get_width()//2, y))
+                    y += 40
+                    game_setting = font.render("(No settings yet)", True, TEXT_COLOR)
+                    screen.blit(game_setting, (SCREEN_WIDTH//2 - game_setting.get_width()//2, y))
+                    y += 60
+            back_button.update(pygame.mouse.get_pos())
+            back_button.draw(screen)
+            mouse_click = False
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    pygame.quit()
+                    sys.exit()
+                if event.type == MOUSEBUTTONDOWN:
+                    mouse_click = True
+                    if ip_box.collidepoint(event.pos):
+                        input_active = 'ip'
+                    elif port_box.collidepoint(event.pos):
+                        input_active = 'port'
+                    else:
+                        input_active = None
+                if event.type == pygame.KEYDOWN and input_active:
+                    if input_active == 'ip':
+                        if event.key == pygame.K_BACKSPACE:
+                            host_ip = host_ip[:-1]
+                        elif len(host_ip) < 15 and (event.unicode.isdigit() or event.unicode == '.' or event.unicode == ':'):
+                            host_ip += event.unicode
+                    elif input_active == 'port':
+                        if event.key == pygame.K_BACKSPACE:
+                            host_port = host_port[:-1]
+                        elif len(host_port) < 5 and event.unicode.isdigit():
+                            host_port += event.unicode
+            if back_button.is_clicked(pygame.mouse.get_pos(), mouse_click):
+                # Save settings
+                config.setdefault("games", {})["tetris_math_multiplayer"] = {"host_ip": host_ip, "host_port": int(host_port) if host_port.isdigit() else 5000}
+                with open(config_path, "w") as f:
+                    json.dump(config, f, indent=2)
+                running = False
+            pygame.display.flip()
+            clock.tick(FPS)
+
     # Main game loop
     running = True
     while running:
         screen.fill(BG_COLOR)
         mouse_pos = pygame.mouse.get_pos()
         mouse_click = False
-        
         for event in pygame.event.get():
             if event.type == QUIT:
                 running = False
             if event.type == MOUSEBUTTONDOWN:
                 mouse_click = True
-        
         # Draw title
         title_text = TITLE_FONT.render(TITLE, True, TEXT_COLOR)
         title_rect = title_text.get_rect(center=(SCREEN_WIDTH//2, 50))
         screen.blit(title_text, title_rect)
-        
         # Draw and update game buttons
         for button, game in buttons:
             button.update(mouse_pos)
             button.draw(screen)
             if button.is_clicked(mouse_pos, mouse_click):
                 game.launch()
-        
-        # Draw and update the single high scores button
+        # Draw and update the high scores button
         high_scores_button.update(mouse_pos)
         high_scores_button.draw(screen)
         if high_scores_button.is_clicked(mouse_pos, mouse_click):
             show_high_scores_menu(games)
-        
+        # Draw and update the settings button
+        settings_button.update(mouse_pos)
+        settings_button.draw(screen)
+        if settings_button.is_clicked(mouse_pos, mouse_click):
+            show_settings_menu()
         # Draw and update exit button
         exit_button.update(mouse_pos)
         exit_button.draw(screen)
         if exit_button.is_clicked(mouse_pos, mouse_click):
             running = False
-        
         pygame.display.flip()
         clock.tick(FPS)
-    
     pygame.quit()
     sys.exit()
 
