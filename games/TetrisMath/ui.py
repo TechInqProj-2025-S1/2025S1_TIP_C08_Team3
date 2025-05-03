@@ -41,8 +41,9 @@ class TetrisMathUI:
     def init_menu_buttons(self):
         font = BODY_FONT
         sw, sh = self.screen_width, self.screen_height
-        self.basic_btn = Button((sw//2-180, sh//2-60, 150, 60), "Basic", GREEN, (0,200,0), font, text_color=BLACK)
-        self.master_btn = Button((sw//2+30, sh//2-60, 150, 60), "Master", PURPLE, (120,0,120), font, text_color=WHITE)
+        # Basic: background #90d565, text white; Master: background #b954e1, text white
+        self.basic_btn = Button((sw//2-180, sh//2-60, 150, 60), "Basic", (144, 213, 101), (110, 180, 80), font, text_color=WHITE)
+        self.master_btn = Button((sw//2+30, sh//2-60, 150, 60), "Master", (185, 84, 225), (140, 50, 180), font, text_color=WHITE)
         self.back_btn = Button((sw//2-100, sh//2+40, 200, 50), "Back to Menu", ACCENT_COLOR, PRIMARY_COLOR, font, text_color=BLACK)
         self.menu_buttons = [self.basic_btn, self.master_btn, self.back_btn]
     def run(self):
@@ -129,9 +130,14 @@ class TetrisMathUI:
                                     self.tetris_game.rotate_piece()
                                     self.tetris_game.last_move_time = pygame.time.get_ticks()
                                 elif event.key == pygame.K_SPACE:
+                                    # Hard drop: move piece to bottom, then lock it and prevent further rotation
                                     while self.tetris_game.valid_move(self.tetris_game.current_piece, self.tetris_game.current_piece.x, self.tetris_game.current_piece.y + 1):
                                         self.tetris_game.current_piece.y += 1
                                         self.tetris_game.score += 1
+                                    # After hard drop, lock the piece and prevent further movement/rotation
+                                    self.tetris_game.piece_locked = True
+                                    self.tetris_game.lock_pending = True
+                                    self.tetris_game.lock_timer = self.tetris_game.lock_delay
                                 elif event.key in (pygame.K_c, pygame.K_LSHIFT, pygame.K_RSHIFT):
                                     self.tetris_game.hold_current_piece()
                                 elif event.key == pygame.K_ESCAPE:
