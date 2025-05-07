@@ -1,6 +1,6 @@
 import pygame
 from .constants import (
-    BG_COLOR, PRIMARY_COLOR, ACCENT_COLOR, GREEN, PURPLE, WHITE, BLACK, TEXT_COLOR, get_fonts
+    BG_COLOR, PRIMARY_COLOR, ACCENT_COLOR, WHITE, BLACK, TEXT_COLOR, get_fonts
 )
 from .tetris import TetrisGame
 
@@ -24,11 +24,35 @@ class Button:
         return self.rect.collidepoint(mouse_pos) and mouse_click
 
 class TetrisMathUI:
-    def __init__(self):
+    def __init__(self, screen_width=None, screen_height=None, fullscreen=True, borderless=False):
+        import os
+        import json
         pygame.init()
         info = pygame.display.Info()
-        self.screen_width, self.screen_height = info.current_w, info.current_h
-        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), pygame.FULLSCREEN)
+        # Try to read launcher config for display settings
+        config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config.json")
+        launcher_display = None
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, "r") as f:
+                    config = json.load(f)
+                launcher_display = config.get("launcher", {}).get("display", None)
+            except Exception:
+                launcher_display = None
+        if launcher_display:
+            screen_width = launcher_display.get("width", info.current_w)
+            screen_height = launcher_display.get("height", info.current_h)
+            borderless = launcher_display.get("borderless", True)
+        if screen_width is None:
+            screen_width = info.current_w
+        if screen_height is None:
+            screen_height = info.current_h
+        self.screen_width, self.screen_height = screen_width, screen_height
+        if borderless:
+            flags = pygame.NOFRAME
+        else:
+            flags = pygame.FULLSCREEN if fullscreen else 0
+        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), flags)
         pygame.display.set_caption("Tetris Math")
         self.clock = pygame.time.Clock()
         self.state = 'menu'  # menu, playing, game_over
@@ -45,7 +69,7 @@ class TetrisMathUI:
         self.basic_btn = Button((sw//2-180, sh//2-60, 150, 60), "Basic", (144, 213, 101), (110, 180, 80), font, text_color=WHITE)  # #90d565
         self.master_btn = Button((sw//2+30, sh//2-60, 150, 60), "Master", (185, 84, 225), (140, 50, 180), font, text_color=WHITE)  # #b954e1
         self.multi_btn = Button((sw//2-75, sh//2+20, 150, 60), "Multiplayer", (52, 152, 219), (41, 128, 185), font, text_color=WHITE)
-        self.back_btn = Button((sw//2-100, sh//2+100, 200, 50), "Back to Menu", ACCENT_COLOR, PRIMARY_COLOR, font, text_color=BLACK)
+        self.back_btn = Button((sw//2-90, sh//2+100, 180, 44), "Back to Menu", (52, 152, 219), (41, 128, 185), font, text_color=WHITE)
         self.menu_buttons = [self.basic_btn, self.master_btn, self.multi_btn, self.back_btn]
     def run(self):
         from .constants import ACCENT_COLOR, WARNING_COLOR
@@ -259,23 +283,63 @@ class TetrisMathUI:
         self.screen.fill(BG_COLOR)
         sw, sh = self.screen_width, self.screen_height
         fonts = get_fonts()
+        # Layout parameters
+        center_x = sw // 2
+        y = int(sh * 0.13)
+        spacing = 48
+        # Title
         title = fonts['TITLE_FONT'].render("Tetris Math", True, PRIMARY_COLOR)
-        self.screen.blit(title, (sw//2-title.get_width()//2, sh//8))
+        self.screen.blit(title, (center_x - title.get_width() // 2, y))
+        y += title.get_height() + spacing
+        # Name prompt
         prompt = fonts['BODY_FONT'].render("Enter your name:", True, TEXT_COLOR)
-        self.screen.blit(prompt, (sw//2-prompt.get_width()//2, sh//4))
-        input_box = pygame.Rect(sw//2-150, sh//4+50, 300, 50)
+        self.screen.blit(prompt, (center_x - prompt.get_width() // 2, y))
+        y += prompt.get_height() + 10
+        # Name input box
+        input_box_width, input_box_height = 320, 50
+        input_box = pygame.Rect(center_x - input_box_width // 2, y, input_box_width, input_box_height)
         pygame.draw.rect(self.screen, WHITE, input_box, 2, border_radius=8)
         name_surface = fonts['BODY_FONT'].render(self.name, True, BLACK)
         name_rect = name_surface.get_rect(center=input_box.center)
         self.screen.blit(name_surface, name_rect)
+        y += input_box_height + 18
+        # Difficulty prompt
         diff_text = fonts['SCORE_FONT'].render("Choose difficulty:", True, TEXT_COLOR)
-        self.screen.blit(diff_text, (sw//2-diff_text.get_width()//2, sh//4+120))
-        for btn in self.menu_buttons:
-            btn.update(mouse_pos)
+        self.screen.blit(diff_text, (center_x - diff_text.get_width() // 2, y))
+        y += diff_text.get_height() + 10
+        # Difficulty buttons (side by side, centered)
+        btn_w, btn_h = 140, 50
+        btn_gap = 32
+        bx = center_x - btn_w - btn_gap // 2
+        by = y
+        self.basic_btn.rect.topleft = (bx, by)
+        self.master_btn.rect.topleft = (center_x + btn_gap // 2, by)
+        self.basic_btn.rect.size = (btn_w, btn_h)
+        self.master_btn.rect.size = (btn_w, btn_h)
+        self.basic_btn.update(mouse_pos)
+        self.master_btn.update(mouse_pos)
         self.basic_btn.draw(self.screen)
         self.master_btn.draw(self.screen)
+        # Highlight selected
+        if self.difficulty == 'basic':
+            pygame.draw.rect(self.screen, (0,255,0), self.basic_btn.rect, 4, border_radius=10)
+        elif self.difficulty == 'master':
+            pygame.draw.rect(self.screen, (155,89,182), self.master_btn.rect, 4, border_radius=10)
+        y += btn_h + 18
+        # Multiplayer button (centered)
+        self.multi_btn.rect.topleft = (center_x - btn_w // 2, y)
+        self.multi_btn.rect.size = (btn_w, btn_h)
+        self.multi_btn.update(mouse_pos)
         self.multi_btn.draw(self.screen)
+        y += btn_h + 18
+        # Back button (centered)
+        # Make back button a bit longer to cover the text
+        back_btn_w = 180
+        self.back_btn.rect.topleft = (center_x - back_btn_w // 2, y)
+        self.back_btn.rect.size = (back_btn_w, btn_h)
+        self.back_btn.update(mouse_pos)
         self.back_btn.draw(self.screen)
+        # Handle clicks
         if self.basic_btn.is_clicked(mouse_pos, mouse_click):
             self.difficulty = 'basic'
         if self.master_btn.is_clicked(mouse_pos, mouse_click):
@@ -284,12 +348,10 @@ class TetrisMathUI:
             self.show_multiplayer_mode_prompt()
         if self.back_btn.is_clicked(mouse_pos, mouse_click):
             self.running = False
-        if self.difficulty == 'basic':
-            pygame.draw.rect(self.screen, (0,255,0), self.basic_btn.rect, 4, border_radius=10)
-        elif self.difficulty == 'master':
-            pygame.draw.rect(self.screen, (155,89,182), self.master_btn.rect, 4, border_radius=10)
+        # Instruction
+        y += btn_h + 10
         instr = fonts['SCORE_FONT'].render("Press Enter to start", True, TEXT_COLOR)
-        self.screen.blit(instr, (sw//2-instr.get_width()//2, sh//4+200))
+        self.screen.blit(instr, (center_x - instr.get_width() // 2, y))
 
     def show_multiplayer_mode_prompt(self):
         # Modal for Host/Join selection, then show waiting/connecting overlay
@@ -533,7 +595,9 @@ class TetrisMathUI:
         self.screen.blit(score_text, (self.screen_width // 2 - score_text.get_width() // 2, self.screen_height // 2 + 10))
         restart_text = fonts['BODY_FONT'].render("Press R to Restart", True, TEXT_COLOR)
         self.screen.blit(restart_text, (self.screen_width // 2 - restart_text.get_width() // 2, self.screen_height // 2 + 60))
-        self.back_btn.rect.topleft = (self.screen_width // 2 - 100, self.screen_height // 2 + 120)
+        # Make back button a bit longer to cover the text
+        self.back_btn.rect.topleft = (self.screen_width // 2 - 90, self.screen_height // 2 + 120)
+        self.back_btn.rect.size = (180, 44)
         self.back_btn.draw(self.screen)
         self.back_btn.update(mouse_pos)
         if self.back_btn.is_clicked(mouse_pos, mouse_click):
