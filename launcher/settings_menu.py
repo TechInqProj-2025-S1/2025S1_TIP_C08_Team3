@@ -64,7 +64,7 @@ def show_settings_menu(games, screen, clock, config_path, fonts):
         launcher_setting = font.render("(No settings yet)", True, TEXT_COLOR)
         screen.blit(launcher_setting, (real_screen_width // 2 - launcher_setting.get_width() // 2, y))
         y += 80
-        tetris_label = font.render("Tetris Math Multiplayer", True, ACCENT_COLOR)
+        tetris_label = font.render("Tetris Math Multiplayer", True, PRIMARY_COLOR)
         screen.blit(
             tetris_label,
             (real_screen_width // 2 - tetris_label.get_width() // 2, y)
@@ -103,7 +103,7 @@ def show_settings_menu(games, screen, clock, config_path, fonts):
         y = 530
         for game in games:
             if game.name != "Tetris Math":
-                game_label = font.render(f"{game.name} Settings", True, ACCENT_COLOR)
+                game_label = font.render(f"{game.name} Settings", True, PRIMARY_COLOR)
                 screen.blit(
                     game_label,
                     (real_screen_width // 2 - game_label.get_width() // 2, y)

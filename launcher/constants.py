@@ -12,6 +12,7 @@ PRIMARY_COLOR = (52, 152, 219)  # Blue
 SECONDARY_COLOR = (41, 128, 185)  # Darker Blue
 ACCENT_COLOR = (46, 204, 113)  # Green
 WARNING_COLOR = (231, 76, 60)  # Red
+SECONDARY_WARNING_COLOR = (192, 57, 43)  # Darker Red
 BG_COLOR = (236, 240, 241)  # Light Gray
 TEXT_COLOR = (44, 62, 80)  # Dark Gray
 BUTTON_COLOR = (102, 187, 239)  # #66bbef
