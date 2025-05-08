@@ -111,24 +111,27 @@ class TetrisMathUI:
                                 elif event.key == pygame.K_RETURN:
                                     if self.tetris_game.math.user_answer:
                                         correct = self.tetris_game.math.check_answer(self.tetris_game.math.user_answer)
+                                        # Prepare feedback
                                         if correct:
                                             self.tetris_game.correct_answers += 1
-                                            object.__setattr__(self.tetris_game, 'feedback_message', "Correct!")
-                                            object.__setattr__(self.tetris_game, 'feedback_color', ACCENT_COLOR)
-                                            self.tetris_game.state = "feedback"
-                                            self.tetris_game.math_feedback_time = 1.2
-                                            # Multiplayer: send add_line to opponent
+                                            feedback_message = "Correct!"
+                                            feedback_color = ACCENT_COLOR
+                                        else:
+                                            feedback_message = f"Wrong! Answer: {self.tetris_game.math.answer}"
+                                            feedback_color = WARNING_COLOR
+                                        object.__setattr__(self.tetris_game, 'feedback_message', feedback_message)
+                                        object.__setattr__(self.tetris_game, 'feedback_color', feedback_color)
+                                        self.tetris_game.state = "feedback"
+                                        self.tetris_game.math_feedback_time = 1.2
+                                        # Multiplayer: do NOT sync math state, only send competitive events
+                                        # Add line/send garbage as before
+                                        if correct:
                                             if self.multiplayer_mode and self.network:
                                                 try:
                                                     self.network.send_event({"type": "add_line"})
                                                 except Exception as e:
                                                     print(f"[TetrisMathUI] Failed to send add_line: {e}")
                                         else:
-                                            object.__setattr__(self.tetris_game, 'feedback_message', f"Wrong! Answer: {self.tetris_game.math.answer}")
-                                            object.__setattr__(self.tetris_game, 'feedback_color', WARNING_COLOR)
-                                            self.tetris_game.state = "feedback"
-                                            self.tetris_game.math_feedback_time = 1.2
-                                            # Multiplayer: add line to self
                                             if self.multiplayer_mode and self.network:
                                                 try:
                                                     self.tetris_game.add_garbage_line()
@@ -455,11 +458,14 @@ class TetrisMathUI:
     def on_network_event(self, event):
         # Called from network thread when an event is received
         # If it's a state_sync, update remote_tetris_game; else, pass to local game
-        if isinstance(event, dict) and event.get('type') == 'state_sync':
+        if not isinstance(event, dict):
+            return
+        if event.get('type') == 'state_sync':
             if self.remote_tetris_game:
                 self.remote_tetris_game.apply_state_sync(event)
-        elif self.tetris_game:
-            self.tetris_game.handle_network_event(event)
+        else:
+            if self.tetris_game:
+                self.tetris_game.handle_network_event(event)
     def draw_game(self):
         if not self.tetris_game:
             return
@@ -467,18 +473,21 @@ class TetrisMathUI:
         sw, sh = self.screen_width, self.screen_height
         grid_height = self.tetris_game.grid_height
         grid_width = self.tetris_game.grid_width
-        # 2P: side by side grids
         n_players = 2 if self.remote_tetris_game else 1
         grid_gap = 80
-        grid_size = min(int(sh * 0.8) // grid_height, (sw - grid_gap) // (n_players * grid_width))
+        sidebar_gap = 40
+        grid_size = min(int(sh * 0.8) // grid_height, (sw - n_players * (sidebar_gap + 240) - grid_gap) // (n_players * grid_width))
         grid_total_w = grid_width * grid_size
         grid_total_h = grid_height * grid_size
-        base_left = (sw - (n_players * grid_total_w + (n_players - 1) * grid_gap)) // 2
+        # Calculate total width needed for all grids and sidebars
+        total_width = n_players * (grid_total_w + sidebar_gap + 240) + (n_players - 1) * grid_gap
+        base_left = (sw - total_width) // 2
         grid_tops = [max(60, (sh - grid_total_h) // 2)] * n_players
-        grid_lefts = [base_left + i * (grid_total_w + grid_gap) for i in range(n_players)]
+        grid_lefts = [base_left + i * (grid_total_w + sidebar_gap + 240 + grid_gap) for i in range(n_players)]
+        sidebar_lefts = [grid_lefts[i] + grid_total_w + sidebar_gap for i in range(n_players)]
         self.screen.fill(BG_COLOR)
         fonts = get_fonts()
-        # Draw both grids
+        # Draw both grids and sidebars
         for pidx, game in enumerate([self.tetris_game, self.remote_tetris_game] if self.remote_tetris_game else [self.tetris_game]):
             if not game:
                 continue
@@ -522,29 +531,28 @@ class TetrisMathUI:
                                                  (grid_left + (piece.x + j) * grid_size + 1,
                                                   grid_top + (piece.y + i) * grid_size + 1,
                                                   grid_size - 2, grid_size - 2))
-            # Sidebar (only for local player)
-            if pidx == 0:
-                sidebar_left = grid_left + grid_total_w + 40
-                sidebar_top = grid_top
-                sidebar_w = min(320, sw - sidebar_left - 40)
-                sidebar_h = grid_total_h
-                sidebar_rect = pygame.Rect(sidebar_left, sidebar_top, sidebar_w, sidebar_h)
-                pygame.draw.rect(self.screen, WHITE, sidebar_rect, border_radius=18)
-                pygame.draw.rect(self.screen, PRIMARY_COLOR, sidebar_rect, 3, border_radius=18)
-                y_offset = sidebar_top + 30
-                spacing = 50
-                score_text = fonts['SCORE_FONT'].render(f"Score: {game.score}", True, TEXT_COLOR)
-                self.screen.blit(score_text, (sidebar_left + (sidebar_w - score_text.get_width()) // 2, y_offset))
-                y_offset += spacing
-                level_text = fonts['SCORE_FONT'].render(f"Level: {game.level}", True, TEXT_COLOR)
-                self.screen.blit(level_text, (sidebar_left + (sidebar_w - level_text.get_width()) // 2, y_offset))
-                y_offset += spacing
-                lines_text = fonts['SCORE_FONT'].render(f"Lines: {game.lines_cleared}", True, TEXT_COLOR)
-                self.screen.blit(lines_text, (sidebar_left + (sidebar_w - lines_text.get_width()) // 2, y_offset))
-                y_offset += spacing
-                math_score_text = fonts['SCORE_FONT'].render(f"Math Answers: {game.correct_answers}", True, TEXT_COLOR)
-                self.screen.blit(math_score_text, (sidebar_left + (sidebar_w - math_score_text.get_width()) // 2, y_offset))
-        # Overlays for local player
+            # Sidebar for each player
+            sidebar_left = sidebar_lefts[pidx]
+            sidebar_top = grid_top
+            sidebar_w = 240
+            sidebar_h = grid_total_h
+            sidebar_rect = pygame.Rect(sidebar_left, sidebar_top, sidebar_w, sidebar_h)
+            pygame.draw.rect(self.screen, WHITE, sidebar_rect, border_radius=18)
+            pygame.draw.rect(self.screen, PRIMARY_COLOR if pidx == 0 else ACCENT_COLOR, sidebar_rect, 3, border_radius=18)
+            y_offset = sidebar_top + 30
+            spacing = 50
+            score_text = fonts['SCORE_FONT'].render(f"Score: {game.score}", True, TEXT_COLOR)
+            self.screen.blit(score_text, (sidebar_left + (sidebar_w - score_text.get_width()) // 2, y_offset))
+            y_offset += spacing
+            level_text = fonts['SCORE_FONT'].render(f"Level: {game.level}", True, TEXT_COLOR)
+            self.screen.blit(level_text, (sidebar_left + (sidebar_w - level_text.get_width()) // 2, y_offset))
+            y_offset += spacing
+            lines_text = fonts['SCORE_FONT'].render(f"Lines: {game.lines_cleared}", True, TEXT_COLOR)
+            self.screen.blit(lines_text, (sidebar_left + (sidebar_w - lines_text.get_width()) // 2, y_offset))
+            y_offset += spacing
+            math_score_text = fonts['SCORE_FONT'].render(f"Math Answers: {game.correct_answers}", True, TEXT_COLOR)
+            self.screen.blit(math_score_text, (sidebar_left + (sidebar_w - math_score_text.get_width()) // 2, y_offset))
+        # Overlays for local player only
         if self.tetris_game.state == "math_challenge":
             self.draw_math_overlay()
         elif self.tetris_game.state == "feedback":
@@ -595,6 +603,38 @@ class TetrisMathUI:
         self.screen.blit(score_text, (self.screen_width // 2 - score_text.get_width() // 2, self.screen_height // 2 + 10))
         restart_text = fonts['BODY_FONT'].render("Press R to Restart", True, TEXT_COLOR)
         self.screen.blit(restart_text, (self.screen_width // 2 - restart_text.get_width() // 2, self.screen_height // 2 + 60))
+        # Save high score if not already saved for this game over
+        if not hasattr(self, '_highscore_saved') or not self._highscore_saved:
+            try:
+                import os
+                import json
+                from datetime import datetime
+                # Prepare score entry
+                entry = {
+                    "name": self.tetris_game.player_name or "Player",
+                    "score": self.tetris_game.score,
+                    "difficulty": self.tetris_game.difficulty_mode or "basic",
+                    "level": self.tetris_game.level,
+                    "lines_cleared": self.tetris_game.lines_cleared,
+                    "date": datetime.now().strftime("%Y-%m-%d %H:%M")
+                }
+                score_file = os.path.join(os.getcwd(), "scores", "tetris_math_scores.json")
+                if not os.path.exists(os.path.dirname(score_file)):
+                    os.makedirs(os.path.dirname(score_file))
+                if os.path.exists(score_file):
+                    with open(score_file, "r", encoding="utf-8") as f:
+                        try:
+                            scores = json.load(f)
+                        except Exception:
+                            scores = []
+                else:
+                    scores = []
+                scores.append(entry)
+                with open(score_file, "w", encoding="utf-8") as f:
+                    json.dump(scores, f, indent=2)
+                self._highscore_saved = True
+            except Exception as e:
+                print(f"[TetrisMathUI] Failed to save high score: {e}")
         # Make back button a bit longer to cover the text
         self.back_btn.rect.topleft = (self.screen_width // 2 - 90, self.screen_height // 2 + 120)
         self.back_btn.rect.size = (180, 44)
@@ -605,3 +645,4 @@ class TetrisMathUI:
             self.name = ''
             self.difficulty = None
             self.tetris_game = None
+            self._highscore_saved = False

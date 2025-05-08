@@ -1,4 +1,6 @@
-
+"""
+Main launcher for the game application.
+"""
 import pygame
 from pygame.locals import QUIT, MOUSEBUTTONDOWN
 import sys

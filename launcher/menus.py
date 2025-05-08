@@ -54,6 +54,8 @@ def show_high_scores_menu(games, screen, clock, fonts):
 def show_game_high_scores(game, screen, clock, fonts):
     TITLE_FONT, SUBTITLE_FONT, BODY_FONT, SCORE_FONT = fonts
     scores = get_high_scores(game.name)
+    # Defensive: filter out entries without a valid 'score' key
+    scores = [s for s in scores if isinstance(s, dict) and 'score' in s]
     running = True
     real_screen_width, real_screen_height = screen.get_width(), screen.get_height()
     back_button = Button(real_screen_width//2 - 150, real_screen_height - 120, 300, 60, "Back to Scores Menu", color=ACCENT_COLOR, hover_color=PRIMARY_COLOR, font=BODY_FONT)
@@ -75,7 +77,7 @@ def show_game_high_scores(game, screen, clock, fonts):
             no_scores_rect = no_scores.get_rect(center=(real_screen_width//2, real_screen_height//2))
             screen.blit(no_scores, no_scores_rect)
         else:
-            sorted_scores = sorted(scores, key=lambda x: x["score"], reverse=True)
+            sorted_scores = sorted(scores, key=lambda x: x.get("score", 0), reverse=True)
             for i, score in enumerate(sorted_scores[:10]):
                 difficulty = score.get('difficulty')
                 if difficulty is None:
