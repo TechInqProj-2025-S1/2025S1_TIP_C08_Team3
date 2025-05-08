@@ -1,4 +1,4 @@
-
+"""Constants for launcher UI and theme settings."""
 # Constants
 SCREEN_WIDTH = 1024
 SCREEN_HEIGHT = 1024
