@@ -1,69 +1,46 @@
 import random
 from .math_challenge import MathChallenge
-from .constants import (
-    GRID_WIDTH, GRID_HEIGHT,
-    BLOCK_COLORS
-)
+from .constants import GRID_WIDTH, GRID_HEIGHT
+from .tetromino import Tetromino, SHAPES
 
-# Tetrimino shapes and colors (migrated from legacy)
-SHAPES = [
-    [[1, 1, 1, 1]],
-    [[1, 1], [1, 1]],
-    [[1, 1, 1], [0, 1, 0]],
-    [[1, 1, 1], [1, 0, 0]],
-    [[1, 1, 1], [0, 0, 1]],
-    [[0, 1, 1], [1, 1, 0]],
-    [[1, 1, 0], [0, 1, 1]]
-]
-SHAPE_COLORS = BLOCK_COLORS[:7]
-
-class Tetromino:
-    def __init__(self, x, y, shape):
-        self.x = x
-        self.y = y
-        self.shape = shape
-        self.color = SHAPE_COLORS[SHAPES.index(shape)]
-        self.rotation = 0
-
-    def rotate(self):
-        self.rotation = (self.rotation + 1) % 4
-        self.shape = self.get_rotated_shape()
-
-    def get_rotated_shape(self):
-        if self.shape is not None:
-            if self.rotation == 0:
-                return self.shape
-            elif self.rotation == 1:
-                rows = len(self.shape)
-                cols = len(self.shape[0])
-                rotated = [[0 for _ in range(rows)] for _ in range(cols)]
-                for r in range(rows):
-                    for c in range(cols):
-                        rotated[c][rows - 1 - r] = self.shape[r][c]
-                return rotated
-            elif self.rotation == 2:
-                rows = len(self.shape)
-                cols = len(self.shape[0])
-                rotated = [[0 for _ in range(cols)] for _ in range(rows)]
-                for r in range(rows):
-                    for c in range(cols):
-                        rotated[rows - 1 - r][cols - 1 - c] = self.shape[r][c]
-                return rotated
-            elif self.rotation == 3:
-                rows = len(self.shape)
-                cols = len(self.shape[0])
-                rotated = [[0 for _ in range(rows)] for _ in range(cols)]
-                for r in range(rows):
-                    for c in range(cols):
-                        rotated[cols - 1 - c][r] = self.shape[r][c]
-                return rotated
 
 class TetrisGame:
-    def __init__(self, player_name=None, difficulty_mode=None):
+    def get_state_sync(self):
+        # Return a dict representing the minimal state for remote sync
+        return {
+            'type': 'state_sync',
+            'grid': self.grid,
+            'score': self.score,
+            'level': self.level,
+            'lines_cleared': self.lines_cleared,
+            'game_over': self.game_over,
+            'player_name': self.player_name,
+        }
+
+    def apply_state_sync(self, state):
+        # Update this game instance with remote state
+        if not isinstance(state, dict):
+            return
+        if 'grid' in state:
+            self.grid = [row[:] for row in state['grid']]
+        if 'score' in state:
+            self.score = state['score']
+        if 'level' in state:
+            self.level = state['level']
+        if 'lines_cleared' in state:
+            self.lines_cleared = state['lines_cleared']
+        if 'game_over' in state:
+            self.game_over = state['game_over']
+        if 'player_name' in state:
+            self.player_name = state['player_name']
+    def __init__(self, player_name=None, difficulty_mode=None, multiplayer_mode=None):
         self.player_name = player_name
         self.difficulty_mode = difficulty_mode
-        self.grid_height = GRID_HEIGHT
+        self.multiplayer_mode = multiplayer_mode
+        self.network = None  # type: ignore  # Will be set by UI if multiplayer
+        # Add missing attributes for test compatibility and correct initialization
         self.grid_width = GRID_WIDTH
+        self.grid_height = GRID_HEIGHT
         self.grid = [[0 for _ in range(self.grid_width)] for _ in range(self.grid_height)]
         self.current_piece = self.new_piece()
         self.next_piece = self.new_piece()
@@ -96,6 +73,30 @@ class TetrisGame:
         self.feedback_message = ""
         self.feedback_color = (0, 255, 0)
         self.debug = False
+    def handle_network_event(self, event):
+        # Handle incoming network events (e.g., add line, state sync)
+        if not isinstance(event, dict):
+            return
+        if event.get('type') == 'add_line':
+            self.add_garbage_line()
+        elif event.get('type') == 'state_sync':
+            self.apply_state_sync(event)
+        # Add more event types as needed
+    def send_state_sync(self):
+        # Send state to remote if networked
+        if self.network:
+            try:
+                self.network.send_event(self.get_state_sync())
+            except Exception as e:
+                print(f"[TetrisGame] Failed to send state sync: {e}")
+
+    def add_garbage_line(self):
+        # Add a garbage line to the bottom, push everything up
+        from .constants import GRAY
+        empty_idx = random.randint(0, self.grid_width - 1)
+        garbage = [GRAY if i != empty_idx else 0 for i in range(self.grid_width)]
+        self.grid.pop(0)
+        self.grid.append(garbage)
 
     def new_piece(self):
         shape = random.choice(SHAPES)
@@ -196,20 +197,22 @@ class TetrisGame:
                 self.lock_pending = True
 
     def rotate_piece(self):
-        if not self.piece_locked and self.current_piece.shape is not None:
-            rotated_shape = self.current_piece.get_rotated_shape()
-            kicks = [(0,0), (0,-1), (0,-2), (-1,0), (1,0)]
-            for dx, dy in kicks:
-                new_x = self.current_piece.x + dx
-                new_y = self.current_piece.y + dy
-                if self.valid_move(self.current_piece, new_x, new_y, rotated_shape):
-                    self.current_piece.shape = rotated_shape
-                    self.current_piece.rotation = (self.current_piece.rotation + 1) % 4
-                    self.current_piece.x = new_x
-                    self.current_piece.y = new_y
-                    if self.lock_pending:
-                        self.lock_timer = 0
-                    break
+        # Prevent rotation if piece is locked (e.g., after hard drop)
+        if self.piece_locked or self.current_piece.shape is None:
+            return
+        rotated_shape = self.current_piece.get_rotated_shape()
+        kicks = [(0,0), (0,-1), (0,-2), (-1,0), (1,0)]
+        for dx, dy in kicks:
+            new_x = self.current_piece.x + dx
+            new_y = self.current_piece.y + dy
+            if self.valid_move(self.current_piece, new_x, new_y, rotated_shape):
+                self.current_piece.shape = rotated_shape
+                self.current_piece.rotation = (self.current_piece.rotation + 1) % 4
+                self.current_piece.x = new_x
+                self.current_piece.y = new_y
+                if self.lock_pending:
+                    self.lock_timer = 0
+                break
 
     def hold_current_piece(self):
         if self.piece_locked or self.hold_used:

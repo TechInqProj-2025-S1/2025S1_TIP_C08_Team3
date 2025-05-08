@@ -1,0 +1,15 @@
+{
+  "launcher": {
+    "display": {
+      "width": 2048,
+      "height": 1152,
+      "borderless": true
+    }
+  },
+  "games": {
+    "tetris_math_multiplayer": {
+      "host_ip": "192.168.86.2",
+      "host_port": 8600
+    }
+  }
+}
