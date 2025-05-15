@@ -82,7 +82,7 @@ def main():
         )
     ]
 
-    # Responsive layout: calculate available area and center all UI vertically and horizontally
+    # Dynamic, Responsive base on current Screen Resolution
     num_cols = 2
     num_rows = 3
     button_width = 300
@@ -110,7 +110,7 @@ def main():
         start_x = (real_screen_width - total_width) // 2
         start_y = max(100, (real_screen_height - total_height) // 2 - 60)
 
-    # Create buttons for each game
+    # Game Button
     buttons = []
     for i, game in enumerate(games):
         row = i // num_cols
@@ -119,13 +119,13 @@ def main():
         y = start_y + row * (button_height + v_gap)
         buttons.append((Button(x, y, button_width, button_height, game.name, font_size=40, font=BODY_FONT), game))
 
-    # Menu buttons (centered below game grid)
+    # Menu buttons
     menu_y = start_y + total_height + 40
     menu_gap = 40
     menu_button_width = int(0.4 * total_width // 2)
     menu_button_width = max(menu_button_width, 180)
     menu_button_height = 60
-    # Center both buttons as a group
+    # Button group centered
     # pylint: disable=line-too-long
     total_menu_width = menu_button_width * 2 + menu_gap  # no parens, avoid C0325
     menu_start_x = real_screen_width // 2 - total_menu_width // 2
@@ -165,7 +165,7 @@ def main():
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:  # pylint: disable=no-member
                 mouse_click = True
-        # Draw title (centered at top)
+        # Tittle
         title_text = TITLE_FONT.render(TITLE, True, TEXT_COLOR)
         title_rect = title_text.get_rect(center=(real_screen_width // 2, start_y // 2))
         screen.blit(title_text, title_rect)
@@ -183,19 +183,19 @@ def main():
                     )
                 else:
                     game.launch()
-        # Draw and update the high scores button
+        # High scores button
         high_scores_button.update(mouse_pos)
         high_scores_button.draw(screen)
         if high_scores_button.is_clicked(mouse_pos, mouse_click):
             show_high_scores_menu(games, screen, clock, fonts)
 
-        # Draw and update the settings button
+        # Settings button
         settings_button.update(mouse_pos)
         settings_button.draw(screen)
         if settings_button.is_clicked(mouse_pos, mouse_click):
             show_settings_menu(games, screen, clock, config_path, fonts)
 
-        # Draw and update exit button
+        # Exit button
         exit_button.update(mouse_pos)
         exit_button.draw(screen)
         if exit_button.is_clicked(mouse_pos, mouse_click):
