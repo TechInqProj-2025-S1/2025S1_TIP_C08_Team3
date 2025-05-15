@@ -1,4 +1,4 @@
-import random
+# import random
 from .constants import BLOCK_COLORS
 
 # Tetrimino shapes and colors

@@ -32,7 +32,7 @@ class Game:
             bool: True if launched successfully, False otherwise.
         """
         try:
-            # Dynamic import of the game module (kept here to avoid circular imports)
+            # Dynamic import of the game module (avoid circular imports)
             if self.name == "Tetris Math":
                 from games.TetrisMath.main import main as tetris_main  # noqa: E402
                 tetris_main(

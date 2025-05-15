@@ -74,7 +74,7 @@ class TetrisGame:
         self.feedback_color = (0, 255, 0)
         self.debug = False
     def handle_network_event(self, event):
-        # Handle incoming network events (e.g., add line, state sync)
+        # Handle incoming network events
         if not isinstance(event, dict):
             return
         if event.get('type') == 'add_line':
