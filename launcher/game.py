@@ -41,6 +41,14 @@ class Game:
                     fullscreen=fullscreen
                 )
                 return True
+            elif self.name == "Math Beats":
+                from games.math_beats.math_beats import main as math_beats_main  # noqa: E402
+                math_beats_main(
+                    screen_width=screen_width,
+                    screen_height=screen_height,
+                    fullscreen=fullscreen
+                )
+                return True
             # Placeholder for other games
             print(f"{self.name} is a placeholder.")
             return False
