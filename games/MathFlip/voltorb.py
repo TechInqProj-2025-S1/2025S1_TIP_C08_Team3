@@ -11,42 +11,63 @@ SCORE_FILE = os.path.join('scores', 'math_flip_scores.json')
 # Initialize pygame
 pygame.init()
 
+
 # Constants
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
 FPS = 60
 GRID_SIZE = 5
-CELL_SIZE = 80
-GRID_OFFSET_X = 160
-GRID_OFFSET_Y = 70
-ANSWER_CELL_WIDTH = 120
-ANSWER_CELL_HEIGHT = 60
-ANSWER_OFFSET_Y = 500
+# CELL_SIZE, GRID_OFFSET_X, GRID_OFFSET_Y will be computed dynamically
+ANSWER_CELL_HEIGHT = 60  # Height for answer cells (width is dynamic)
 
-# Colors
+
+
+# THEME COLORS (match launcher)
+BG_COLOR = (236, 240, 241)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
-GRAY = (200, 200, 200)
-LIGHT_GREEN = (150, 255, 150)
-LIGHT_BLUE = (150, 150, 255)
-LIGHT_RED = (255, 150, 150)
+GRAY = (200, 200, 200)  # For grid background/unrevealed
+PRIMARY_COLOR = (52, 152, 219)  # Blue
+SECONDARY_COLOR = (41, 128, 185)  # Darker Blue
+ACCENT_COLOR = (46, 204, 113)  # Green
+WARNING_COLOR = (231, 76, 60)  # Red
+SECONDARY_WARNING_COLOR = (192, 57, 43)  # Darker Red
+TEXT_COLOR = (44, 62, 80)  # Dark Gray
+BUTTON_COLOR = (102, 187, 239)
+BUTTON_HOVER_COLOR = (82, 167, 219)
+BUTTON_TEXT_COLOR = (255, 255, 255)
+LIGHT_GREEN = ACCENT_COLOR
+LIGHT_BLUE = PRIMARY_COLOR
+LIGHT_RED = WARNING_COLOR
 YELLOW = (255, 255, 0)
-BLUE = (0, 0, 255)
+BLUE = PRIMARY_COLOR
 
 # Game difficulty levels
 EASY = "Easy"
 NORMAL = "Normal"
 HARD = "Hard"
 
-# Set up the game window
-DISPLAYSURF = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-pygame.display.set_caption('Math Flip Game')
-CLOCK = pygame.time.Clock()
 
-# Fonts
-FONT_LARGE = pygame.font.Font(None, 48)
-FONT_MEDIUM = pygame.font.Font(None, 36)
-FONT_SMALL = pygame.font.Font(None, 24)
+# Set up the game window (will be initialized in MathFlipGame)
+DISPLAYSURF = None
+CLOCK = None
+
+# Fonts (match launcher/Tetris Math style)
+def get_launcher_fonts():
+    # Use prioritized list for cross-platform consistency
+    font_list = ['San Francisco', 'Helvetica Neue', 'Arial', 'sans-serif']
+    if not pygame.font.get_init():
+        pygame.font.init()
+    return {
+        'TITLE_FONT': pygame.font.SysFont(font_list, 60, bold=True),
+        'BODY_FONT': pygame.font.SysFont(font_list, 32),
+        'SCORE_FONT': pygame.font.SysFont(font_list, 28),
+    }
+
+_FONTS = get_launcher_fonts()
+FONT_LARGE = _FONTS['TITLE_FONT']
+FONT_MEDIUM = _FONTS['BODY_FONT']
+FONT_SMALL = _FONTS['SCORE_FONT']
 
 # Function to check if highscore file exists, if not create it
 def initialize_highscores():
@@ -89,7 +110,46 @@ def update_highscores(difficulty, player_name, score):
 
 # Game class
 class MathFlipGame:
-    def __init__(self):
+    def __init__(self, screen_width=None, screen_height=None, fullscreen=True):
+        import os
+        import json
+        global DISPLAYSURF, CLOCK, WINDOW_WIDTH, WINDOW_HEIGHT
+        # Try to read launcher config for display settings
+        info = pygame.display.Info()
+        config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config.json")
+        launcher_display = None
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, "r") as f:
+                    config = json.load(f)
+                launcher_display = config.get("launcher", {}).get("display", None)
+            except Exception:
+                launcher_display = None
+        if launcher_display:
+            screen_width = launcher_display.get("width", info.current_w)
+            screen_height = launcher_display.get("height", info.current_h)
+        if screen_width is None:
+            screen_width = info.current_w
+        if screen_height is None:
+            screen_height = info.current_h
+        WINDOW_WIDTH = screen_width
+        WINDOW_HEIGHT = screen_height
+        # Always use fullscreen borderless (NOFRAME)
+        flags = pygame.NOFRAME
+        DISPLAYSURF = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), flags)
+        pygame.display.set_caption('Math Flip Game')
+        CLOCK = pygame.time.Clock()
+        # --- Dynamic grid scaling ---
+        self.GRID_SIZE = GRID_SIZE
+        # The grid should fit within 60% of the window height and 60% of the window width (leaving room for UI)
+        max_grid_width = int(WINDOW_WIDTH * 0.6)
+        max_grid_height = int(WINDOW_HEIGHT * 0.6)
+        self.CELL_SIZE = min(max_grid_width // self.GRID_SIZE, max_grid_height // self.GRID_SIZE)
+        self.GRID_PIXEL_SIZE = self.CELL_SIZE * self.GRID_SIZE
+        # Center the grid horizontally and vertically (with some top margin for title/timer)
+        self.GRID_OFFSET_X = (WINDOW_WIDTH - self.GRID_PIXEL_SIZE) // 2
+        self.GRID_OFFSET_Y = max(70, (WINDOW_HEIGHT - self.GRID_PIXEL_SIZE) // 2 - 40)
+        # ---
         self.state = "menu"  # menu, difficulty, game, game_over
         self.difficulty = EASY
         self.score = 0
@@ -192,112 +252,130 @@ class MathFlipGame:
         return question, answer
     
     def draw_menu(self):
-        DISPLAYSURF.fill(WHITE)
+        DISPLAYSURF.fill(BG_COLOR)
         # Draw title
-        title = FONT_LARGE.render("Math Flip Game", True, BLUE)
-        DISPLAYSURF.blit(title, (WINDOW_WIDTH//2 - title.get_width()//2, 100))
-        # Draw buttons
-        play_button = pygame.Rect(WINDOW_WIDTH//2 - 100, 220, 200, 50)
-        exit_button = pygame.Rect(WINDOW_WIDTH//2 - 100, 320, 200, 50)
-        pygame.draw.rect(DISPLAYSURF, LIGHT_GREEN, play_button)
-        pygame.draw.rect(DISPLAYSURF, LIGHT_RED, exit_button)
-        play_text = FONT_MEDIUM.render("Play", True, BLACK)
-        exit_text = FONT_MEDIUM.render("Exit", True, BLACK)
+        title = FONT_LARGE.render("Math Flip Game", True, PRIMARY_COLOR)
+        title_y = 120
+        DISPLAYSURF.blit(title, (WINDOW_WIDTH//2 - title.get_width()//2, title_y))
+
+        # Button layout
+        button_width = 240
+        button_height = 56
+        spacing = 32
+        center_x = WINDOW_WIDTH // 2
+        start_y = title_y + title.get_height() + 60
+
+        # Play button
+        play_button = pygame.Rect(center_x - button_width//2, start_y, button_width, button_height)
+        pygame.draw.rect(DISPLAYSURF, BUTTON_COLOR, play_button, border_radius=16)
+        play_text = FONT_MEDIUM.render("Play", True, BUTTON_TEXT_COLOR)
         DISPLAYSURF.blit(play_text, (play_button.centerx - play_text.get_width()//2, play_button.centery - play_text.get_height()//2))
-        DISPLAYSURF.blit(exit_text, (exit_button.centerx - exit_text.get_width()//2, exit_button.centery - exit_text.get_height()//2))
-        return [play_button, exit_button]
+
+        # Back to Menu button
+        back_button = pygame.Rect(center_x - button_width//2, play_button.bottom + spacing, button_width, button_height)
+        pygame.draw.rect(DISPLAYSURF, SECONDARY_COLOR, back_button, border_radius=16)
+        back_text = FONT_MEDIUM.render("Back to Menu", True, BUTTON_TEXT_COLOR)
+        DISPLAYSURF.blit(back_text, (back_button.centerx - back_text.get_width()//2, back_button.centery - back_text.get_height()//2))
+
+        return [play_button, back_button]
     
     def draw_difficulty_selection(self):
-        DISPLAYSURF.fill(WHITE)
-        
+        DISPLAYSURF.fill(BG_COLOR)
         # Draw title
-        title = FONT_LARGE.render("Select Difficulty", True, BLUE)
-        DISPLAYSURF.blit(title, (WINDOW_WIDTH//2 - title.get_width()//2, 100))
-        
-        # Draw buttons
-        easy_button = pygame.Rect(WINDOW_WIDTH//2 - 100, 200, 200, 50)
-        normal_button = pygame.Rect(WINDOW_WIDTH//2 - 100, 280, 200, 50)
-        hard_button = pygame.Rect(WINDOW_WIDTH//2 - 100, 360, 200, 50)
-        
-        pygame.draw.rect(DISPLAYSURF, LIGHT_GREEN, easy_button)
-        pygame.draw.rect(DISPLAYSURF, LIGHT_BLUE, normal_button)
-        pygame.draw.rect(DISPLAYSURF, LIGHT_RED, hard_button)
-        
-        easy_text = FONT_MEDIUM.render("Easy", True, BLACK)
-        normal_text = FONT_MEDIUM.render("Normal", True, BLACK)
-        hard_text = FONT_MEDIUM.render("Hard", True, BLACK)
-        
+        title = FONT_LARGE.render("Select Difficulty", True, PRIMARY_COLOR)
+        title_y = 100
+        DISPLAYSURF.blit(title, (WINDOW_WIDTH//2 - title.get_width()//2, title_y))
+
+        # Layout parameters
+        button_width = 180
+        button_height = 48
+        spacing = 24
+        desc_spacing = 8
+        desc_to_button_spacing = 24  # More space between desc and next button
+        center_x = WINDOW_WIDTH // 2
+        start_y = title_y + title.get_height() + 48
+
+        # Center all three buttons horizontally, stack vertically with spacing and enough gap for description
+        button_gap = 32
+        desc_gap = 10  # vertical gap between button and its description
+
+        # Easy
+        easy_button_y = start_y
+        easy_button = pygame.Rect(center_x - button_width//2, easy_button_y, button_width, button_height)
+        pygame.draw.rect(DISPLAYSURF, ACCENT_COLOR, easy_button, border_radius=12)
+        easy_text = FONT_MEDIUM.render("Easy", True, BUTTON_TEXT_COLOR)
         DISPLAYSURF.blit(easy_text, (easy_button.centerx - easy_text.get_width()//2, easy_button.centery - easy_text.get_height()//2))
+        easy_desc = FONT_SMALL.render("Addition only", True, TEXT_COLOR)
+        easy_desc_y = easy_button.bottom + desc_gap
+        DISPLAYSURF.blit(easy_desc, (center_x - easy_desc.get_width()//2, easy_desc_y))
+
+        # Normal
+        normal_button_y = easy_desc_y + easy_desc.get_height() + button_gap
+        normal_button = pygame.Rect(center_x - button_width//2, normal_button_y, button_width, button_height)
+        pygame.draw.rect(DISPLAYSURF, PRIMARY_COLOR, normal_button, border_radius=12)
+        normal_text = FONT_MEDIUM.render("Normal", True, BUTTON_TEXT_COLOR)
         DISPLAYSURF.blit(normal_text, (normal_button.centerx - normal_text.get_width()//2, normal_button.centery - normal_text.get_height()//2))
+        normal_desc = FONT_SMALL.render("Addition and Subtraction", True, TEXT_COLOR)
+        normal_desc_y = normal_button.bottom + desc_gap
+        DISPLAYSURF.blit(normal_desc, (center_x - normal_desc.get_width()//2, normal_desc_y))
+
+        # Hard
+        hard_button_y = normal_desc_y + normal_desc.get_height() + button_gap
+        hard_button = pygame.Rect(center_x - button_width//2, hard_button_y, button_width, button_height)
+        pygame.draw.rect(DISPLAYSURF, WARNING_COLOR, hard_button, border_radius=12)
+        hard_text = FONT_MEDIUM.render("Hard", True, BUTTON_TEXT_COLOR)
         DISPLAYSURF.blit(hard_text, (hard_button.centerx - hard_text.get_width()//2, hard_button.centery - hard_text.get_height()//2))
-        
-        # Display difficulty descriptions
-        easy_desc = FONT_SMALL.render("Addition only", True, BLACK)
-        normal_desc = FONT_SMALL.render("Addition and Subtraction", True, BLACK)
-        hard_desc = FONT_SMALL.render("Addition, Subtraction, Multiplication, Division", True, BLACK)
-        
-        DISPLAYSURF.blit(easy_desc, (WINDOW_WIDTH//2 - easy_desc.get_width()//2, easy_button.bottom + 10))
-        DISPLAYSURF.blit(normal_desc, (WINDOW_WIDTH//2 - normal_desc.get_width()//2, normal_button.bottom + 10))
-        DISPLAYSURF.blit(hard_desc, (WINDOW_WIDTH//2 - hard_desc.get_width()//2, hard_button.bottom + 10))
-        
-        # Back button
-        back_button = pygame.Rect(50, 50, 100, 40)
-        pygame.draw.rect(DISPLAYSURF, GRAY, back_button)
-        back_text = FONT_SMALL.render("Back", True, BLACK)
+        hard_desc = FONT_SMALL.render("Addition, Subtraction, Multiplication, Division", True, TEXT_COLOR)
+        hard_desc_y = hard_button.bottom + desc_gap
+        DISPLAYSURF.blit(hard_desc, (center_x - hard_desc.get_width()//2, hard_desc_y))
+
+        # Back button (centered below all options)
+        # Calculate bottom y after hard_desc
+        bottom_y = hard_desc_y + hard_desc.get_height() + 32
+        back_button_width = 120
+        back_button_height = 44
+        back_button_x = center_x - back_button_width // 2
+        back_button_y = bottom_y
+        back_button = pygame.Rect(back_button_x, back_button_y, back_button_width, back_button_height)
+        pygame.draw.rect(DISPLAYSURF, SECONDARY_COLOR, back_button, border_radius=12)
+        back_text = FONT_SMALL.render("Back", True, BUTTON_TEXT_COLOR)
         DISPLAYSURF.blit(back_text, (back_button.centerx - back_text.get_width()//2, back_button.centery - back_text.get_height()//2))
-        
+
         return [easy_button, normal_button, hard_button, back_button]
     
 
     
     def draw_game(self):
-        DISPLAYSURF.fill(WHITE)
-        title = FONT_MEDIUM.render(f"Math Flip Game - {self.difficulty}", True, BLUE)
+        DISPLAYSURF.fill(BG_COLOR)
+        # Title and HUD
+        title = FONT_MEDIUM.render(f"Math Flip Game - {self.difficulty}", True, PRIMARY_COLOR)
         DISPLAYSURF.blit(title, (WINDOW_WIDTH//2 - title.get_width()//2, 20))
-        score_text = FONT_MEDIUM.render(f"Score: {self.score}", True, BLACK)
-        DISPLAYSURF.blit(score_text, (20, 20))
-        timer_text = FONT_MEDIUM.render(f"Time: {self.timer}", True, BLACK)
-        DISPLAYSURF.blit(timer_text, (WINDOW_WIDTH - 150, 20))
-        progress_text = FONT_SMALL.render(f"Matched: {self.correct_matches}/{self.total_matches}", True, BLACK)
-        DISPLAYSURF.blit(progress_text, (WINDOW_WIDTH//2 - progress_text.get_width()//2, 50))
+        score_text = FONT_MEDIUM.render(f"Score: {self.score}", True, TEXT_COLOR)
+        DISPLAYSURF.blit(score_text, (32, 20))
+        timer_text = FONT_MEDIUM.render(f"Time: {self.timer}", True, TEXT_COLOR)
+        DISPLAYSURF.blit(timer_text, (WINDOW_WIDTH - 170, 20))
+        progress_text = FONT_SMALL.render(f"Matched: {self.correct_matches}/{self.total_matches}", True, TEXT_COLOR)
+        DISPLAYSURF.blit(progress_text, (WINDOW_WIDTH//2 - progress_text.get_width()//2, 54))
+
+        # --- Draw grid (scaled and centered, rounded, themed) ---
         answer_cells = []
-        if self.answers and len(self.answers) > 0:
-            answer_width = (WINDOW_WIDTH - 100) // len(self.answers)
-            for i, answer in enumerate(self.answers):
+        for i in range(self.GRID_SIZE):
+            for j in range(self.GRID_SIZE):
                 cell_rect = pygame.Rect(
-                    50 + i * answer_width,
-                    ANSWER_OFFSET_Y,
-                    answer_width,
-                    ANSWER_CELL_HEIGHT
-                )
-                pygame.draw.rect(DISPLAYSURF, YELLOW if self.selected_answer == i else LIGHT_GREEN, cell_rect)
-                pygame.draw.rect(DISPLAYSURF, BLACK, cell_rect, 2)
-                answer_text = FONT_MEDIUM.render(str(answer), True, BLACK)
-                if answer_text:
-                    DISPLAYSURF.blit(answer_text, (cell_rect.centerx - answer_text.get_width()//2, cell_rect.centery - answer_text.get_height()//2))
-                answer_cells.append(cell_rect)
-        back_button = pygame.Rect(20, WINDOW_HEIGHT - 50, 80, 30)
-        pygame.draw.rect(DISPLAYSURF, GRAY, back_button)
-        back_text = FONT_SMALL.render("Menu", True, BLACK)
-        DISPLAYSURF.blit(back_text, (back_button.centerx - back_text.get_width()//2, back_button.centery - back_text.get_height()//2))
-        # Draw grid
-        for i in range(GRID_SIZE):
-            for j in range(GRID_SIZE):
-                cell_rect = pygame.Rect(
-                    GRID_OFFSET_X + j * CELL_SIZE,
-                    GRID_OFFSET_Y + i * CELL_SIZE,
-                    CELL_SIZE,
-                    CELL_SIZE
+                    self.GRID_OFFSET_X + j * self.CELL_SIZE,
+                    self.GRID_OFFSET_Y + i * self.CELL_SIZE,
+                    self.CELL_SIZE,
+                    self.CELL_SIZE
                 )
                 # Determine box color
                 if self.revealed[i][j] and (i, j) in getattr(self, 'answered_cells', set()):
-                    color = LIGHT_GREEN  # answered
+                    color = ACCENT_COLOR  # answered
                 elif self.revealed[i][j]:
-                    color = LIGHT_BLUE  # revealed but not answered
+                    color = PRIMARY_COLOR  # revealed but not answered
                 else:
                     color = GRAY  # unrevealed
-                pygame.draw.rect(DISPLAYSURF, color, cell_rect)
-                pygame.draw.rect(DISPLAYSURF, BLACK, cell_rect, 2)
+                pygame.draw.rect(DISPLAYSURF, color, cell_rect, border_radius=12)
+                pygame.draw.rect(DISPLAYSURF, SECONDARY_COLOR, cell_rect, 2, border_radius=12)
                 # Draw question if revealed (not answered) or being dragged
                 if self.revealed[i][j] and (i, j) not in getattr(self, 'answered_cells', set()):
                     if self.grid[i][j] is not None:
@@ -307,22 +385,51 @@ class MathFlipGame:
                         else:
                             cell_value = self.grid[i][j]
                             if cell_value is not None and cell_value[0] is not None:
-                                question_text = FONT_SMALL.render(str(cell_value[0]), True, BLACK)
+                                question_text = FONT_SMALL.render(str(cell_value[0]), True, WHITE)
                                 if question_text:
                                     DISPLAYSURF.blit(question_text, (cell_rect.centerx - question_text.get_width()//2, cell_rect.centery - question_text.get_height()//2))
+
         # If dragging, draw the selected question at mouse position
         if self.dragging and self.selected_cell is not None:
             i, j = self.selected_cell
             cell_value = self.grid[i][j]
             if cell_value is not None and cell_value[0] is not None:
                 mouse_pos = pygame.mouse.get_pos()
-                question_text = FONT_SMALL.render(str(cell_value[0]), True, BLACK)
+                question_text = FONT_SMALL.render(str(cell_value[0]), True, WHITE)
                 if question_text:
                     question_rect = question_text.get_rect(center=mouse_pos)
-                    pygame.draw.rect(DISPLAYSURF, LIGHT_BLUE, question_rect.inflate(20, 10))
-                    pygame.draw.rect(DISPLAYSURF, BLACK, question_rect.inflate(20, 10), 2)
+                    pygame.draw.rect(DISPLAYSURF, PRIMARY_COLOR, question_rect.inflate(20, 10), border_radius=10)
+                    pygame.draw.rect(DISPLAYSURF, SECONDARY_COLOR, question_rect.inflate(20, 10), 2, border_radius=10)
                     DISPLAYSURF.blit(question_text, question_rect)
-        # Always return a tuple for event handling
+
+        # --- Draw answer bar (centered below grid, themed, rounded) ---
+        if self.answers and len(self.answers) > 0:
+            answer_bar_width = min(WINDOW_WIDTH - 40, self.GRID_PIXEL_SIZE)
+            answer_width = answer_bar_width // len(self.answers)
+            answer_bar_x = (WINDOW_WIDTH - answer_bar_width) // 2
+            answer_bar_y = self.GRID_OFFSET_Y + self.GRID_PIXEL_SIZE + 40
+            for i, answer in enumerate(self.answers):
+                cell_rect = pygame.Rect(
+                    answer_bar_x + i * answer_width,
+                    answer_bar_y,
+                    answer_width,
+                    ANSWER_CELL_HEIGHT
+                )
+                # Use accent for selected, primary for others
+                cell_color = ACCENT_COLOR if self.selected_answer == i else PRIMARY_COLOR
+                pygame.draw.rect(DISPLAYSURF, cell_color, cell_rect, border_radius=14)
+                pygame.draw.rect(DISPLAYSURF, SECONDARY_COLOR, cell_rect, 2, border_radius=14)
+                answer_text = FONT_MEDIUM.render(str(answer), True, WHITE)
+                if answer_text:
+                    DISPLAYSURF.blit(answer_text, (cell_rect.centerx - answer_text.get_width()//2, cell_rect.centery - answer_text.get_height()//2))
+                answer_cells.append(cell_rect)
+
+        # --- Draw back/menu button (bottom left, themed) ---
+        back_button = pygame.Rect(32, WINDOW_HEIGHT - 70, 120, 44)
+        pygame.draw.rect(DISPLAYSURF, BUTTON_COLOR, back_button, border_radius=12)
+        back_text = FONT_SMALL.render("Menu", True, BUTTON_TEXT_COLOR)
+        DISPLAYSURF.blit(back_text, (back_button.centerx - back_text.get_width()//2, back_button.centery - back_text.get_height()//2))
+
         return answer_cells, back_button
 
     def draw_game_over(self):
@@ -379,9 +486,8 @@ class MathFlipGame:
             if button.collidepoint(mouse_pos):
                 if i == 0:  # Play button
                     self.state = "difficulty"
-                elif i == 1:  # Exit button
-                    pygame.quit()
-                    sys.exit()
+                elif i == 1:  # Back to Menu button
+                    self.state = "exit_to_launcher"
     
     def handle_difficulty_click(self, mouse_pos, buttons):
         for i, button in enumerate(buttons):
@@ -412,20 +518,20 @@ class MathFlipGame:
         # Check if grid cell was clicked
         if not answer_cells:
             answer_cells = []
-        for i in range(GRID_SIZE):
-            for j in range(GRID_SIZE):
+        for i in range(self.GRID_SIZE):
+            for j in range(self.GRID_SIZE):
                 cell_rect = pygame.Rect(
-                    GRID_OFFSET_X + j * CELL_SIZE,
-                    GRID_OFFSET_Y + i * CELL_SIZE,
-                    CELL_SIZE,
-                    CELL_SIZE
+                    self.GRID_OFFSET_X + j * self.CELL_SIZE,
+                    self.GRID_OFFSET_Y + i * self.CELL_SIZE,
+                    self.CELL_SIZE,
+                    self.CELL_SIZE
                 )
                 if cell_rect.collidepoint(mouse_pos):
                     # If not revealed, reveal it (and only one at a time)
                     if not self.revealed[i][j]:
                         # Unreveal all non-answered cells
-                        for x in range(GRID_SIZE):
-                            for y in range(GRID_SIZE):
+                        for x in range(self.GRID_SIZE):
+                            for y in range(self.GRID_SIZE):
                                 if self.revealed[x][y] and (x, y) not in getattr(self, 'answered_cells', set()):
                                     self.revealed[x][y] = False
                         self.revealed[i][j] = True
@@ -531,8 +637,7 @@ class MathFlipGame:
             # Process events
             for event in pygame.event.get():
                 if event.type == QUIT:
-                    pygame.quit()
-                    sys.exit()
+                    running = False
                 elif event.type == MOUSEBUTTONDOWN and event.button == 1:
                     if self.state == "menu":
                         buttons = self.draw_menu()
@@ -565,8 +670,12 @@ class MathFlipGame:
                 self.draw_game_over()
             pygame.display.update()
             CLOCK.tick(FPS)
+            if self.state == "exit_to_launcher":
+                running = False
 
 
-if __name__ == "__main__":
-    game = MathFlipGame()
+
+# Entry point for launcher integration
+def launch_math_flip(screen_width=None, screen_height=None, fullscreen=True):
+    game = MathFlipGame(screen_width=screen_width, screen_height=screen_height, fullscreen=fullscreen)
     game.run()

@@ -42,9 +42,13 @@ class Game:
                 )
                 return True
             elif self.name == "Math Flip":
-                from games.MathFlip.voltorb import MathFlipGame  # noqa: E402
-                game = MathFlipGame()
-                game.run()
+                # Try to use the main() entrypoint if available for consistency
+                try:
+                    from games.MathFlip import main as mathflip_main  # noqa: E402
+                    mathflip_main()
+                except ImportError:
+                    from games.MathFlip.voltorb import launch_math_flip  # noqa: E402
+                    launch_math_flip()
                 return True
             # For test: always try importlib if module_name is set
             if self.module_name:
