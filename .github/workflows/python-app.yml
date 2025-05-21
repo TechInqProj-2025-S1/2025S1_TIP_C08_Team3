@@ -1,0 +1,38 @@
+name: Python package
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov pylint pytest-mock
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        # Install additional dependencies needed for testing
+        pip install pygame numpy
+
+    - name: Lint with pylint
+      run: |
+        pylint --disable=C0111,C0103,C0303,C0301,W0613,R0903,R0914,R0912,R0915 games/TetrisMath launcher || true
+        
+    - name: Test with pytest
+      run: |
+        pytest --maxfail=3 --disable-warnings --cov=games/TetrisMath --cov=launcher --cov-report=term --cov-report=xml -v tests/
+       
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
