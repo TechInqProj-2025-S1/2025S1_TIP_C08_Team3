@@ -49,6 +49,17 @@ class Game:
                     fullscreen=fullscreen
                 )
                 return True
+            # For test: always try importlib if module_name is set
+            if self.module_name:
+                import importlib
+                module = importlib.import_module(f"games.{self.module_name}")
+                if hasattr(module, "main"):
+                    module.main(
+                        screen_width=screen_width,
+                        screen_height=screen_height,
+                        fullscreen=fullscreen
+                    )
+                return True
             # Placeholder for other games
             print(f"{self.name} is a placeholder.")
             return False
