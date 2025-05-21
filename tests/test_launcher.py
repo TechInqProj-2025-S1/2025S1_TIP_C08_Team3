@@ -53,11 +53,15 @@ def test_game_launch(monkeypatch):
         return module
     
     monkeypatch.setattr("importlib.import_module", mock_import_module)
-    
-    # Create and test game
+
+    # Patch Game.launch to always call importlib.import_module
+    # (in case placeholder logic is present)
     game = Game("TestGame", "Test Description", "test.module")
+    # Remove placeholder main to force import
+    if hasattr(game, "main"):
+        delattr(game, "main")
     result = game.launch(screen_width=800, screen_height=600, fullscreen=False)
-    
+
     # Verify module was imported correctly
     assert import_called_with == "games.test.module"
     assert result is True
@@ -215,6 +219,8 @@ def test_menus_high_scores(monkeypatch):
     monkeypatch.setattr(pygame, "quit", lambda: None)
     monkeypatch.setattr("sys.exit", lambda x=0: None)
     
+    # Patch pygame.display.flip to avoid "Display mode not set" error
+    monkeypatch.setattr(pygame.display, "flip", lambda: None)
     # Test menu function (should exit immediately due to mocked event)
     show_high_scores_menu(games, screen, clock, fonts)
 

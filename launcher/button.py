@@ -28,6 +28,7 @@ class Button:
         self.hover_color = hover_color
         self.current_color = color
         self.text_color = text_color
+        self.hovered = False
         if font is not None:
             self.font = font
         else:
@@ -58,8 +59,10 @@ class Button:
         """
         if self.rect.collidepoint(mouse_pos):
             self.current_color = self.hover_color
+            self.hovered = True
             return True
         self.current_color = self.color
+        self.hovered = False
         return False
 
     def is_clicked(self, mouse_pos, mouse_click):
