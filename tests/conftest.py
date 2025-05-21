@@ -2,7 +2,7 @@
 import pytest
 import pygame
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def pygame_init():
     pygame.init()
     yield
