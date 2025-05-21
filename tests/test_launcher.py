@@ -207,18 +207,31 @@ def test_menus_high_scores(monkeypatch):
     # Create some test games
     games = [Game("TestGame", "Test Description", "test.module")]
     
-    # Mock pygame event handling to exit menu immediately
+    # Mock pygame event handling to exit menu immediately, but also simulate a mouse click on the back button
+    quit_called = {"value": False}
+    orig_get = pygame.event.get
     def mock_event_get():
-        event = MagicMock()
-        event.type = pygame.QUIT
-        return [event]
-    
+        if not quit_called["value"]:
+            # Simulate a mouse click event
+            quit_called["value"] = True
+            event = MagicMock()
+            event.type = pygame.MOUSEBUTTONDOWN
+            return [event]
+        else:
+            # After first click, simulate QUIT to break any further loops
+            event = MagicMock()
+            event.type = pygame.QUIT
+            return [event]
     monkeypatch.setattr(pygame.event, "get", mock_event_get)
-    
-    # Mock pygame.quit to prevent actual quitting
+    # Patch Button.is_clicked to always return True for back button
+    from launcher import button as button_mod
+    orig_is_clicked = button_mod.Button.is_clicked
+    def always_true(self, mouse_pos, mouse_click):
+        return True
+    monkeypatch.setattr(button_mod.Button, "is_clicked", always_true)
+    # Patch pygame.quit and sys.exit to prevent actual quitting
     monkeypatch.setattr(pygame, "quit", lambda: None)
     monkeypatch.setattr("sys.exit", lambda x=0: None)
-    
     # Patch pygame.display.flip to avoid "Display mode not set" error
     monkeypatch.setattr(pygame.display, "flip", lambda: None)
     # Test menu function (should exit immediately due to mocked event)

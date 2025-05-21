@@ -94,7 +94,8 @@ class TetrisGame:
         # Add a garbage line to the bottom, push everything up
         from .constants import GRAY
         empty_idx = random.randint(0, self.grid_width - 1)
-        garbage = [GRAY if i != empty_idx else 0 for i in range(self.grid_width)]
+        GARBAGE_CODE = 8
+        garbage = [GARBAGE_CODE if i != empty_idx else 0 for i in range(self.grid_width)]
         self.grid.pop(0)
         self.grid.append(garbage)
 
@@ -137,6 +138,7 @@ class TetrisGame:
             self.level = self.lines_cleared // 10 + 1
             self.fall_speed = max(0.05, 0.5 - (self.level - 1) * 0.05)
             self.update_difficulty()
+        return num_lines
 
     def update_difficulty(self):
         if self.level < 3:
@@ -241,6 +243,8 @@ class TetrisGame:
             self.move_right_pressed = False
             self.move_down_pressed = False
         self.state = new_state
+        if new_state == 'game_over':
+            self.game_over = True
 
     def update(self, dt):
         if self.state == "game_over":
