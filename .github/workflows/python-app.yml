@@ -23,10 +23,13 @@ jobs:
         # Install additional dependencies needed for testing
         pip install pygame numpy
 
+    - name: Set PYTHONPATH for imports
+      run: echo "PYTHONPATH=${{ github.workspace }}" >> $GITHUB_ENV
+
     - name: Lint with pylint
       run: |
         pylint --disable=C0111,C0103,C0303,C0301,W0613,R0903,R0914,R0912,R0915 games/TetrisMath launcher || true
-        
+
     - name: Test with pytest
       run: |
         pytest --maxfail=3 --disable-warnings --cov=games/TetrisMath --cov=launcher --cov-report=term --cov-report=xml -v tests/
