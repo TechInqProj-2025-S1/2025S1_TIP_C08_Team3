@@ -21,6 +21,24 @@
 - Write comments and documentation properly.
 - Test your code thoroughly before submitting a pull request.
 
+## Automated Code Quality Checks
+
+This repository uses GitHub Actions to automatically run PyLint on all Python code when:
+- You push to the main branch
+- You create or update a pull request to the main branch
+
+### How it works:
+1. The workflow configuration is in `.github/workflows/pylint.yml`
+2. PyLint will check your code against the rules defined in `.pylintrc`
+3. If there are significant code quality issues, the check will fail
+4. Fix any reported issues before merging your code
+
+### Running PyLint locally:
+To check your code before pushing:
+```bash
+pip install pylint
+pylint --rcfile=.pylintrc your_file.py
+```
 
 ---
 _Author: Duc Thinh Nguyen_
