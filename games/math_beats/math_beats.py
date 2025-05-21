@@ -1,10 +1,11 @@
 
 import pygame
 import os
-from .constants import SCREEN_WIDTH, SCREEN_HEIGHT, BG_COLOR, WHITE
-from .ui import MathBeatsUI
-from .beats import BeatDetector
-from .problems import generate_problem
+import random
+from games.math_beats.constants import SCREEN_WIDTH, SCREEN_HEIGHT, WHITE
+from games.math_beats.ui import MathBeatsUI
+from games.math_beats.beats import BeatDetector
+from games.math_beats.problems import generate_problem
 
 def get_fonts():
     pygame.font.init()
@@ -39,14 +40,12 @@ def main(screen_width=None, screen_height=None, fullscreen=True):
     lives = 3
     beat_idx = 0
     drops = []
-    problem = generate_problem(bpm)
-    # Assign choices to random lanes
-    import random
+    problem = generate_problem(bpm)    # Assign choices to random lanes
     lanes = list(range(3))
     random.shuffle(lanes)
     for i, val in enumerate(problem['choices']):
         drops.append({'lane': lanes[i], 'y': -60, 'value': val, 'correct': val == problem['answer'], 'hit': False})
-    next_beat_time = beats[0] if beats else 0
+    # Calculate drop speed based on beat intervals
     drop_speed = int((beats[1] - beats[0]) * 1.5) if len(beats) > 1 else 1000
     hit_window = 200
     feedback = None
