@@ -11,7 +11,7 @@ pygame.init()
 
 # Screen size
 WIDTH, HEIGHT = 800, 600
-screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.FULLSCREEN)
+screen = pygame.display.set_mode((WIDTH, HEIGHT))  # Removed FULLSCREEN mode due to issues - Oivia
 pygame.display.set_caption("Spell Quest")
 
 # Colors
