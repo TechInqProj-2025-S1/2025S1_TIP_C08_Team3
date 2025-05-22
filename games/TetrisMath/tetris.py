@@ -5,8 +5,9 @@ from .tetromino import Tetromino, SHAPES
 
 
 class TetrisGame:
+    # Tetris Math game logic
     def get_state_sync(self):
-        # Return a dict representing the minimal state for remote sync
+        # Get state for network sync
         return {
             'type': 'state_sync',
             'grid': self.grid,
@@ -18,7 +19,7 @@ class TetrisGame:
         }
 
     def apply_state_sync(self, state):
-        # Update this game instance with remote state
+        # Apply remote state
         if not isinstance(state, dict):
             return
         if 'grid' in state:
@@ -34,10 +35,11 @@ class TetrisGame:
         if 'player_name' in state:
             self.player_name = state['player_name']
     def __init__(self, player_name=None, difficulty_mode=None, multiplayer_mode=None):
+        # Init game
         self.player_name = player_name
         self.difficulty_mode = difficulty_mode
         self.multiplayer_mode = multiplayer_mode
-        self.network = None  # type: ignore  # Will be set by UI if multiplayer
+        self.network = None  # Set by UI if multiplayer
         # Add missing attributes for test compatibility and correct initialization
         self.grid_width = GRID_WIDTH
         self.grid_height = GRID_HEIGHT
@@ -74,16 +76,15 @@ class TetrisGame:
         self.feedback_color = (0, 255, 0)
         self.debug = False
     def handle_network_event(self, event):
-        # Handle incoming network events
+        # Handle network events
         if not isinstance(event, dict):
             return
         if event.get('type') == 'add_line':
             self.add_garbage_line()
         elif event.get('type') == 'state_sync':
             self.apply_state_sync(event)
-        # Add more event types as needed
     def send_state_sync(self):
-        # Send state to remote if networked
+        # Send state to remote
         if self.network:
             try:
                 self.network.send_event(self.get_state_sync())
@@ -91,7 +92,7 @@ class TetrisGame:
                 print(f"[TetrisGame] Failed to send state sync: {e}")
 
     def add_garbage_line(self):
-        # Add a garbage line to the bottom, push everything up
+        # Add garbage line
         from .constants import GRAY
         empty_idx = random.randint(0, self.grid_width - 1)
         GARBAGE_CODE = 8
@@ -100,10 +101,12 @@ class TetrisGame:
         self.grid.append(garbage)
 
     def new_piece(self):
+        # New random piece
         shape = random.choice(SHAPES)
         return Tetromino(self.grid_width // 2 - len(shape[0]) // 2, 0, shape)
 
     def valid_move(self, piece, x, y, shape=None):
+        # Check if move is valid
         if shape is None:
             shape = piece.shape
         for i, row in enumerate(shape):
@@ -116,6 +119,7 @@ class TetrisGame:
         return True
 
     def add_to_grid(self, piece):
+        # Add piece to grid
         for i, row in enumerate(piece.shape):
             for j, cell in enumerate(row):
                 if cell:
@@ -123,6 +127,7 @@ class TetrisGame:
                         self.grid[piece.y + i][piece.x + j] = piece.color
 
     def clear_lines(self):
+        # Clear filled lines
         lines_to_clear = []
         for i, row in enumerate(self.grid):
             if all(cell != 0 for cell in row):
@@ -141,6 +146,7 @@ class TetrisGame:
         return num_lines
 
     def update_difficulty(self):
+        # Update math difficulty
         if self.level < 3:
             self.math.difficulty = 1
         elif self.level < 6:
@@ -151,6 +157,7 @@ class TetrisGame:
             self.math.difficulty = 4
 
     def reset_game(self):
+        # Reset game state
         self.grid = [[0 for _ in range(self.grid_width)] for _ in range(self.grid_height)]
         self.current_piece = self.new_piece()
         self.next_piece = self.new_piece()
@@ -170,11 +177,13 @@ class TetrisGame:
         self.feedback_color = (0, 255, 0)
 
     def trigger_math_challenge(self):
+        # Start math challenge
         self.math.reset()
         self.state = "math_challenge"
         self.piece_locked = True
 
     def move_piece(self, dx):
+        # Move piece left/right
         if not self.piece_locked:
             new_x = self.current_piece.x + dx
             if self.valid_move(self.current_piece, new_x, self.current_piece.y):
@@ -183,6 +192,7 @@ class TetrisGame:
                     self.lock_timer = 0
 
     def soft_drop(self, dt=None):
+        # Soft drop piece
         if self.piece_locked:
             return
         if dt is None:
@@ -199,6 +209,7 @@ class TetrisGame:
                 self.lock_pending = True
 
     def rotate_piece(self):
+        # Rotate piece
         # Prevent rotation if piece is locked (e.g., after hard drop)
         if self.piece_locked or self.current_piece.shape is None:
             return
@@ -217,6 +228,7 @@ class TetrisGame:
                 break
 
     def hold_current_piece(self):
+        # Hold current piece
         if self.piece_locked or self.hold_used:
             return
         if self.hold_piece is None:
@@ -233,11 +245,13 @@ class TetrisGame:
         self.lock_timer = 0
 
     def lock_piece(self):
+        # Lock piece
         self.hold_used = False
         self.update_difficulty()
         self.math.reset(self.math.difficulty)
 
     def set_state(self, new_state):
+        # Set game state
         if hasattr(self, 'state') and self.state == 'playing' and new_state != 'playing':
             self.move_left_pressed = False
             self.move_right_pressed = False
@@ -247,6 +261,7 @@ class TetrisGame:
             self.game_over = True
 
     def update(self, dt):
+        # Update game logic
         if self.state == "game_over":
             return
         if self.state == "feedback":
@@ -312,6 +327,7 @@ class TetrisGame:
                 self.game_over = True
 
     def get_ghost_piece_position(self):
+        # Get ghost piece position
         piece = self.current_piece
         if not piece or not piece.shape:
             return piece.x, piece.y
@@ -321,11 +337,7 @@ class TetrisGame:
         return x, y
 
     def run_ui(self, ui):
-        # This method is called by the UI loop for each frame
+        # Called by UI loop each frame
         dt = ui.clock.get_time() / 1000.0
-        # Handle input events (UI should pass relevant events to TetrisGame)
-        # Update game state
         self.update(dt)
-        # Draw game (UI will handle actual drawing)
-        # UI should call its own draw_game method, passing self as needed
         pass

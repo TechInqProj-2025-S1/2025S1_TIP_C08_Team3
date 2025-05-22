@@ -1,4 +1,4 @@
-"""Settings menu for the game launcher."""
+# Settings menu
 import sys
 import json
 import pygame
@@ -9,16 +9,7 @@ from .constants import (
 from .button import Button
 
 def show_settings_menu(games, screen, clock, config_path, fonts):
-    """
-    Display and handle the settings menu for the launcher and games.
-
-    Args:
-        games (list): List of game objects.
-        screen (pygame.Surface): The main display surface.
-        clock (pygame.time.Clock): The game clock.
-        config_path (str): Path to the config file.
-        fonts (tuple): Tuple of pygame fonts (title, body, score, etc).
-    """
+    # Show settings menu
     # pylint: disable=too-many-locals, too-many-branches, too-many-statements
     title_font, _subtitle_font, body_font, score_font = fonts
     running = True
@@ -35,13 +26,13 @@ def show_settings_menu(games, screen, clock, config_path, fonts):
         color=BUTTON_COLOR, hover_color=BUTTON_HOVER_COLOR,
         text_color=BUTTON_TEXT_COLOR, font=body_font
     )
-    # Layout: [Host IP:][input]   [Host Port:][input]
+    # Layout: [IP][input] [Port][input]
     ip_label = font.render("Host IP:", True, TEXT_COLOR)
     port_label = font.render("Host Port:", True, TEXT_COLOR)
     ip_box_width = 220
     port_box_width = 120
     box_height = 50
-    # Calculate positions for horizontal alignment
+    # Horizontal align
     total_width = (
         ip_label.get_width() + ip_box_width + 40 + port_label.get_width() + port_box_width
     )
@@ -58,19 +49,21 @@ def show_settings_menu(games, screen, clock, config_path, fonts):
         title = title_font.render("Settings", True, TEXT_COLOR)
         screen.blit(title, (real_screen_width // 2 - title.get_width() // 2, 60))
         y = 180
+        # Launcher section
         launcher_label = font.render("Launcher Settings", True, PRIMARY_COLOR)
         screen.blit(launcher_label, (real_screen_width // 2 - launcher_label.get_width() // 2, y))
         y += 50
         launcher_setting = font.render("(No settings yet)", True, TEXT_COLOR)
         screen.blit(launcher_setting, (real_screen_width // 2 - launcher_setting.get_width() // 2, y))
         y += 80
+        # Tetris Math section
         tetris_label = font.render("Tetris Math Multiplayer", True, PRIMARY_COLOR)
         screen.blit(
             tetris_label,
             (real_screen_width // 2 - tetris_label.get_width() // 2, y)
         )
         y += 40
-        # Draw IP label and box
+        # IP label/box
         screen.blit(
             ip_label,
             (ip_label_x, input_y + (box_height - ip_label.get_height()) // 2)
@@ -81,7 +74,7 @@ def show_settings_menu(games, screen, clock, config_path, fonts):
             ip_surf,
             (ip_box.x + 10, ip_box.y + (box_height - ip_surf.get_height()) // 2)
         )
-        # Draw Port label and box
+        # Port label/box
         screen.blit(
             port_label,
             (port_label_x, input_y + (box_height - port_label.get_height()) // 2)
@@ -92,6 +85,7 @@ def show_settings_menu(games, screen, clock, config_path, fonts):
             port_surf,
             (port_box.x + 10, port_box.y + (box_height - port_surf.get_height()) // 2)
         )
+        # LAN play instructions
         instr = score_font.render(
             "Set IP/Port for LAN play. Host: share your IP/port. Join: enter host's IP/port.",
             True, TEXT_COLOR
@@ -101,6 +95,7 @@ def show_settings_menu(games, screen, clock, config_path, fonts):
             (real_screen_width // 2 - instr.get_width() // 2, 430)
         )
         y = 530
+        # Other games
         for game in games:
             if game.name != "Tetris Math":
                 game_label = font.render(f"{game.name} Settings", True, PRIMARY_COLOR)
@@ -115,6 +110,7 @@ def show_settings_menu(games, screen, clock, config_path, fonts):
                     (real_screen_width // 2 - game_setting.get_width() // 2, y)
                 )
                 y += 60
+        # Back button
         back_button.update(pygame.mouse.get_pos())
         back_button.draw(screen)
         mouse_click = False
@@ -145,6 +141,7 @@ def show_settings_menu(games, screen, clock, config_path, fonts):
                         host_port = host_port[:-1]
                     elif len(host_port) < 5 and event.unicode.isdigit():
                         host_port += event.unicode
+        # Save and exit
         if back_button.is_clicked(pygame.mouse.get_pos(), mouse_click):
             config.setdefault("games", {})["tetris_math_multiplayer"] = {
                 "host_ip": host_ip,

@@ -1,1 +1,1 @@
-# Launcher package init
+# Launcher package

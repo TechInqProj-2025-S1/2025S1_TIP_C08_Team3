@@ -15,7 +15,7 @@ def test_button_class_exists():
     from launcher import button
     assert hasattr(button, 'Button')
 
-# --- White-box: test Game class logic (backend) ---
+# Game logic
 def test_game_class_init():
     from launcher.game import Game
     g = Game("TestGame", "desc", "module")
@@ -23,7 +23,7 @@ def test_game_class_init():
     assert g.description == "desc"
     assert g.module_name == "module"
 
-# --- Black-box: Button UI logic (frontend logic) ---
+# Button UI
 def test_button_instantiation(monkeypatch):
     import pygame
     from launcher.button import Button
@@ -33,7 +33,7 @@ def test_button_instantiation(monkeypatch):
     assert btn.rect.width == 100
     assert btn.rect.height == 40
 
-# --- Test launcher.game module (launch function) ---
+# Launch func
 def test_game_launch(monkeypatch):
     import sys
     from launcher.game import Game
@@ -66,7 +66,7 @@ def test_game_launch(monkeypatch):
     assert import_called_with == "games.test.module"
     assert result is True
 
-# --- Test failed game launch ---
+# Launch fail
 def test_game_launch_failure(monkeypatch):
     import sys
     from launcher.game import Game
@@ -84,7 +84,7 @@ def test_game_launch_failure(monkeypatch):
     # Should return False on error
     assert result is False
 
-# --- Test Button click detection ---
+# Click detect
 def test_button_click_detection(monkeypatch):
     import pygame
     from launcher.button import Button
@@ -104,7 +104,7 @@ def test_button_click_detection(monkeypatch):
     # Test click detection with mouse inside button but no click
     assert btn.is_clicked((150, 125), False) is False
 
-# --- Test Button rendering ---
+# Button draw
 def test_button_rendering(monkeypatch):
     import pygame
     from launcher.button import Button
@@ -132,14 +132,14 @@ def test_button_rendering(monkeypatch):
     assert btn.hovered is False
     btn.draw(surface)
 
-# --- Test Game with custom class_name ---
+# Custom class
 def test_game_with_custom_class():
     from launcher.game import Game
     game = Game("TestGame", "desc", "module", class_name="CustomClass")
     assert game.name == "TestGame" 
     assert game.class_name == "CustomClass"
 
-# --- Test high score functionality ---
+# High scores
 def test_high_scores(monkeypatch):
     from launcher.score import get_high_scores
     import json
@@ -178,7 +178,7 @@ def test_high_scores(monkeypatch):
     assert scores[1]["name"] == "Player2"
     assert scores[1]["score"] == 2000
 
-# --- Test empty high scores ---
+# Empty scores
 def test_empty_high_scores(monkeypatch):
     from launcher.score import get_high_scores
     
@@ -191,7 +191,7 @@ def test_empty_high_scores(monkeypatch):
     # Should return empty list
     assert scores == []
 
-# --- Test menus integration ---
+# Menus
 def test_menus_high_scores(monkeypatch):
     import pygame
     from unittest.mock import MagicMock, patch
@@ -237,7 +237,7 @@ def test_menus_high_scores(monkeypatch):
     # Test menu function (should exit immediately due to mocked event)
     show_high_scores_menu(games, screen, clock, fonts)
 
-# --- Test Button hover state ---
+# Hover state
 def test_button_hover_state():
     from launcher.button import Button
     import pygame

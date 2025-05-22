@@ -1,38 +1,19 @@
-"""Game class for handling game launching logic in the Team 3 Launcher."""
+"""Game launching logic"""
 
 class Game:
-    """Represents a game entry in the launcher."""
+    # Game entry for launcher
     # pylint: disable=too-few-public-methods
     def __init__(self, name, description, module_name, class_name=None):
-        """
-        Initialize a Game instance.
-
-        Args:
-            name (str): Name of the game.
-            description (str): Description of the game.
-            module_name (str): Module name for dynamic import.
-            class_name (str, optional): Class name for dynamic import.
-        """
+        # Init Game
         self.name = name
         self.description = description
         self.module_name = module_name
         self.class_name = class_name
 
     def launch(self, screen_width=None, screen_height=None, fullscreen=True):
-        """
-        Launch the game. For 'Tetris Math', dynamically imports and runs its main function.
-        For other games, prints a placeholder message.
-
-        Args:
-            screen_width (int, optional): Screen width.
-            screen_height (int, optional): Screen height.
-            fullscreen (bool, optional): Whether to launch in fullscreen.
-
-        Returns:
-            bool: True if launched successfully, False otherwise.
-        """
+        # Launch the game
         try:
-            # Dynamic import of the game module (avoid circular imports)
+            # Dynamic import for Tetris Math
             if self.name == "Tetris Math":
                 import pygame
                 screen = pygame.display.get_surface()
@@ -55,7 +36,7 @@ class Game:
                     launch_math_flip()
                 return True
 
-            # Launch all games except Math Flip and Tetris Math as subprocesses
+            # Launch other games as subprocess
             if self.name not in ("Tetris Math", "Math Flip"):
                 import subprocess
                 import sys
@@ -71,7 +52,7 @@ class Game:
                     script_path = os.path.abspath(script_paths[self.name])
                     subprocess.Popen([sys.executable, script_path])
                     return True
-            # If not handled, fallback to importlib (for future extensibility)
+            # Fallback: importlib
             import importlib
             import pygame
             screen = pygame.display.get_surface()
@@ -89,17 +70,7 @@ class Game:
                     print(f"Error launching game {self.name}: {e}")
                     return False
 
-            # For test: always try importlib if module_name is set
-            if self.module_name:
-                module = importlib.import_module(f"games.{self.module_name}")
-                if hasattr(module, "main"):
-                    module.main(
-                        screen_width=screen_width,
-                        screen_height=screen_height,
-                        fullscreen=fullscreen
-                    )
-                return True
-            # Placeholder for other games
+            # Placeholder
             print(f"{self.name} is a placeholder.")
             return False
         except (ImportError, TypeError, Exception) as e:

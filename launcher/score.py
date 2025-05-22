@@ -1,26 +1,17 @@
-"""Module for handling high scores for games."""
+# High score handling
 import os
 import json
 
 def get_high_scores(game_name):
-    """
-    Retrieve high scores for a given game from a JSON file.
-
-    Args:
-        game_name (str): The name of the game.
-
-    Returns:
-        list: A list of high scores, or an empty list if not found or on error.
-    """
+    # Get high scores for a game
     score_file = f"scores/{game_name.lower().replace(' ', '_')}_scores.json"
     if not os.path.exists(score_file):
         return []
     try:
         with open(score_file, 'r', encoding='utf-8') as f:
             scores = json.load(f)
-        # Math Flip stores scores as a dict by difficulty, flatten for launcher
+        # Math Flip: flatten dict by difficulty
         if game_name.lower().replace(' ', '_') == 'math_flip':
-            # scores is a dict: {"Easy": [...], "Normal": [...], "Hard": [...]}
             flat_scores = []
             for difficulty, entries in scores.items():
                 for entry in entries:
@@ -32,8 +23,9 @@ def get_high_scores(game_name):
     except (json.JSONDecodeError, OSError, AttributeError):
         return []
 
-# --- Custom high score/leaderboard readers for other games ---
+ # Custom readers for other games
 def get_spell_quest_leaderboard():
+    # Spell Quest leaderboard
     path = "games/spell_quest/leaderboard.json"
     if not os.path.exists(path):
         return []
@@ -44,6 +36,7 @@ def get_spell_quest_leaderboard():
         return []
 
 def get_sequence_game_high_score():
+    # Sequence Game high score
     path = "games/sequence_game/highscore.txt"
     if not os.path.exists(path):
         return 0
@@ -54,6 +47,7 @@ def get_sequence_game_high_score():
         return 0
 
 def get_typing_game_leaderboard():
+    # Typing Game leaderboard
     path = "games/typing_game/leaderboard.json"
     if not os.path.exists(path):
         return []
@@ -64,6 +58,7 @@ def get_typing_game_leaderboard():
         return []
 
 def get_word_pop_high_score():
+    # Word Pop high score
     path = "games/word_pop/highscore.txt"
     if not os.path.exists(path):
         return None, 0

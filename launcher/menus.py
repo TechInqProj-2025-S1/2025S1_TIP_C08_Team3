@@ -1,4 +1,4 @@
-"""Menus for the Team 3 Launcher, including high scores and game selection."""
+"""Menus for launcher UI"""
 import sys
 import pygame
 from .constants import (
@@ -7,18 +7,10 @@ from .constants import (
 from .button import Button
 from .score import get_high_scores
 
-# These functions require the global 'screen' and 'clock' to be set in the main launcher
+ # Needs global screen/clock from main
 
 def show_high_scores_menu(games, screen, clock, fonts):
-    """
-    Display the high scores menu and allow the user to select a game to view scores.
-
-    Args:
-        games (list): List of game objects.
-        screen (pygame.Surface): The main display surface.
-        clock (pygame.time.Clock): The game clock.
-        fonts (tuple): Tuple of pygame fonts (title, subtitle, body, score).
-    """
+    # Show high scores menu
     # pylint: disable=too-many-locals
     title_font, subtitle_font, body_font, _score_font = fonts
     running = True
@@ -73,15 +65,7 @@ def show_high_scores_menu(games, screen, clock, fonts):
         clock.tick(60)
 
 def show_game_high_scores(game, screen, clock, fonts):
-    """
-    Display the high scores for a specific game.
-
-    Args:
-        game (Game): The game object.
-        screen (pygame.Surface): The main display surface.
-        clock (pygame.time.Clock): The game clock.
-        fonts (tuple): Tuple of pygame fonts (title, subtitle, body, score).
-    """
+    # Show high scores for a game
     # pylint: disable=too-many-locals
     title_font, _subtitle_font, body_font, score_font = fonts
     from .score import (

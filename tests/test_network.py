@@ -4,13 +4,12 @@ from unittest.mock import MagicMock, patch
 def test_network_initialization():
     from games.TetrisMath.network import TetrisNetwork
     
-    # Mock callback function
+
+    # Mock cb
     mock_callback = MagicMock()
-    
-    # Create network with host mode
+    # Host mode
     network = TetrisNetwork("host", "127.0.0.1", 5000, mock_callback)
-    
-    # Verify initialization
+    # Init check
     assert network.mode == "host"
     assert network.host_ip == "127.0.0.1"
     assert network.host_port == 5000

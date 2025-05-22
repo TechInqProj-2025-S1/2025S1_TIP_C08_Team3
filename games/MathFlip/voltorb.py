@@ -4,24 +4,24 @@ import os
 import json
 from pygame.locals import QUIT, MOUSEBUTTONDOWN, MOUSEBUTTONUP, KEYDOWN, K_BACKSPACE, K_RETURN, K_a, K_z, K_0, K_9, K_SPACE
 
-# Score file path for launcher compatibility
+# Score file path
 SCORE_FILE = os.path.join('scores', 'math_flip_scores.json')
 
-# Initialize pygame
+# Init pygame
 pygame.init()
 
 
-# Constants
+# Consts
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
 FPS = 60
 GRID_SIZE = 5
-# CELL_SIZE, GRID_OFFSET_X, GRID_OFFSET_Y will be computed dynamically
+# CELL_SIZE, GRID_OFFSET_X, GRID_OFFSET_Y set later
 ANSWER_CELL_HEIGHT = 60  # Height for answer cells (width is dynamic)
 
 
 
-# THEME COLORS (match launcher)
+# Colors
 BG_COLOR = (236, 240, 241)
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
@@ -41,15 +41,15 @@ LIGHT_RED = WARNING_COLOR
 YELLOW = (255, 255, 0)
 BLUE = PRIMARY_COLOR
 
-# Game difficulty levels
+# Difficulty
 EASY = "Easy"
 NORMAL = "Normal"
 HARD = "Hard"
 
 
-# Fonts (match launcher/Tetris Math style)
+# Fonts
 def get_launcher_fonts():
-    # Use prioritized list for cross-platform consistency
+    # Font list for cross-platform
     font_list = ['San Francisco', 'Helvetica Neue', 'Arial', 'sans-serif']
     if not pygame.font.get_init():
         pygame.font.init()
@@ -64,7 +64,7 @@ FONT_LARGE = _FONTS['TITLE_FONT']
 FONT_MEDIUM = _FONTS['BODY_FONT']
 FONT_SMALL = _FONTS['SCORE_FONT']
 
-# Function to check if highscore file exists, if not create it
+# Create highscore file if missing
 def initialize_highscores():
     if not os.path.exists(SCORE_FILE):
         empty_scores = {
@@ -76,7 +76,7 @@ def initialize_highscores():
         with open(SCORE_FILE, 'w', encoding='utf-8') as f:
             json.dump(empty_scores, f)
 
-# Function to load high scores
+# Load highscores
 def load_highscores():
     try:
         with open(SCORE_FILE, 'r', encoding='utf-8') as f:
@@ -85,12 +85,12 @@ def load_highscores():
         initialize_highscores()
         return load_highscores()
 
-# Function to save high scores
+# Save highscores
 def save_highscores(highscores):
     with open(SCORE_FILE, 'w', encoding='utf-8') as f:
         json.dump(highscores, f)
 
-# Function to update high scores
+# Update highscores
 def update_highscores(difficulty, player_name, score):
     highscores = load_highscores()
     
@@ -108,7 +108,7 @@ class MathFlipGame:
     def __init__(self, screen_width=None, screen_height=None, fullscreen=True, screen=None):
         import os
         import json
-        # Try to read launcher config for display settings
+        # Read launcher config
         info = pygame.display.Info()
         config_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "config.json")
         launcher_display = None
@@ -131,19 +131,19 @@ class MathFlipGame:
         if screen is not None:
             self.DISPLAYSURF = screen
         else:
-            # Always use fullscreen borderless (NOFRAME)
+            # Use fullscreen borderless
             flags = pygame.NOFRAME
             self.DISPLAYSURF = pygame.display.set_mode((self.WINDOW_WIDTH, self.WINDOW_HEIGHT), flags)
             pygame.display.set_caption('Math Flip Game')
         self.CLOCK = pygame.time.Clock()
-        # --- Dynamic grid scaling ---
+        # Grid scaling
         self.GRID_SIZE = GRID_SIZE
-        # The grid should fit within 60% of the window height and 60% of the window width (leaving room for UI)
+        # Grid fits 60% window
         max_grid_width = int(self.WINDOW_WIDTH * 0.6)
         max_grid_height = int(self.WINDOW_HEIGHT * 0.6)
         self.CELL_SIZE = min(max_grid_width // self.GRID_SIZE, max_grid_height // self.GRID_SIZE)
         self.GRID_PIXEL_SIZE = self.CELL_SIZE * self.GRID_SIZE
-        # Center the grid horizontally and vertically (with some top margin for title/timer)
+        # Center grid
         self.GRID_OFFSET_X = (self.WINDOW_WIDTH - self.GRID_PIXEL_SIZE) // 2
         self.GRID_OFFSET_Y = max(70, (self.WINDOW_HEIGHT - self.GRID_PIXEL_SIZE) // 2 - 40)
         # ---
@@ -161,7 +161,7 @@ class MathFlipGame:
         self.initialize_highscores()
         self.player_name = ""
         self.name_input_active = False
-        self.timer = 60  # 60 seconds timer for the game
+        self.timer = 60  # 60s timer
         self.last_time = pygame.time.get_ticks()
     
     def initialize_highscores(self):
@@ -180,7 +180,7 @@ class MathFlipGame:
         self.timer = 60  # Reset timer
         self.last_time = pygame.time.get_ticks()
         
-        # Generate questions and answers based on difficulty
+        # Make questions/answers
         self.generate_questions()
         self.total_matches = len([cell for row in self.grid for cell in row if cell is not None])
     
@@ -198,12 +198,12 @@ class MathFlipGame:
         self.grid: list[list[Optional[tuple[str, int]]]] = [[None for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
         self.grid = [[None for _ in range(GRID_SIZE)] for _ in range(GRID_SIZE)]
         
-        # Select random cells to put questions in (not all cells will have questions)
+        # Pick random cells for questions
         num_questions = random.randint(15, 20)  # Between 15-20 questions
         possible_positions = [(i, j) for i in range(GRID_SIZE) for j in range(GRID_SIZE)]
         question_positions = random.sample(possible_positions, num_questions)
         
-        # Generate questions for selected positions
+        # Make questions
         unique_answers = set()
         for pos in question_positions:
             i, j = pos
@@ -211,14 +211,14 @@ class MathFlipGame:
             self.grid[i][j] = (question, answer)
             unique_answers.add(answer)
         
-        # Convert unique answers to list and select 5 (or less if there are fewer unique answers)
+        # Pick up to 5 answers
         unique_answers_list = list(unique_answers)
         if len(unique_answers_list) <= 5:
             self.answers = unique_answers_list
         else:
             self.answers = random.sample(unique_answers_list, 5)
         
-        # Add "Other" as the last option
+        # Add "Other"
         self.answers.append("Other")
     
     def generate_single_question(self, operations):
@@ -232,7 +232,7 @@ class MathFlipGame:
         
         elif operation == "-":
             a = random.randint(1, 20)
-            b = random.randint(1, a)  # Ensure a >= b for primary school level
+            b = random.randint(1, a)  # Ensure a >= b
             question = f"{a} - {b}"
             answer = a - b
         
@@ -244,7 +244,7 @@ class MathFlipGame:
         
         elif operation == "/":
             b = random.randint(1, 10)
-            a = b * random.randint(1, 10)  # Ensure division results in whole number
+            a = b * random.randint(1, 10)  # Ensure int result
             question = f"{a} ÷ {b}"
             answer = a // b
         
@@ -253,25 +253,25 @@ class MathFlipGame:
     def draw_menu(self):
         surf = self.DISPLAYSURF
         surf.fill(BG_COLOR)
-        # Draw title
+        # Title
         title = FONT_LARGE.render("Math Flip Game", True, PRIMARY_COLOR)
         title_y = 120
         surf.blit(title, (self.WINDOW_WIDTH//2 - title.get_width()//2, title_y))
 
-        # Button layout
+        # Buttons
         button_width = 240
         button_height = 56
         spacing = 32
         center_x = self.WINDOW_WIDTH // 2
         start_y = title_y + title.get_height() + 60
 
-        # Play button
+        # Play btn
         play_button = pygame.Rect(center_x - button_width//2, start_y, button_width, button_height)
         pygame.draw.rect(surf, BUTTON_COLOR, play_button, border_radius=16)
         play_text = FONT_MEDIUM.render("Play", True, BUTTON_TEXT_COLOR)
         surf.blit(play_text, (play_button.centerx - play_text.get_width()//2, play_button.centery - play_text.get_height()//2))
 
-        # Back to Menu button
+        # Back btn
         back_button = pygame.Rect(center_x - button_width//2, play_button.bottom + spacing, button_width, button_height)
         pygame.draw.rect(surf, SECONDARY_COLOR, back_button, border_radius=16)
         back_text = FONT_MEDIUM.render("Back to Menu", True, BUTTON_TEXT_COLOR)
@@ -282,12 +282,12 @@ class MathFlipGame:
     def draw_difficulty_selection(self):
         surf = self.DISPLAYSURF
         surf.fill(BG_COLOR)
-        # Draw title
+        # Title
         title = FONT_LARGE.render("Select Difficulty", True, PRIMARY_COLOR)
         title_y = 100
         surf.blit(title, (self.WINDOW_WIDTH//2 - title.get_width()//2, title_y))
 
-        # Layout parameters
+        # Layout
         button_width = 180
         button_height = 48
         spacing = 24
@@ -296,7 +296,7 @@ class MathFlipGame:
         center_x = self.WINDOW_WIDTH // 2
         start_y = title_y + title.get_height() + 48
 
-        # Center all three buttons horizontally, stack vertically with spacing and enough gap for description
+        # Center buttons
         button_gap = 32
         desc_gap = 10  # vertical gap between button and its description
 
@@ -330,8 +330,8 @@ class MathFlipGame:
         hard_desc_y = hard_button.bottom + desc_gap
         surf.blit(hard_desc, (center_x - hard_desc.get_width()//2, hard_desc_y))
 
-        # Back button (centered below all options)
-        # Calculate bottom y after hard_desc
+        # Back btn
+        # Bottom y
         bottom_y = hard_desc_y + hard_desc.get_height() + 32
         back_button_width = 120
         back_button_height = 44
@@ -349,7 +349,7 @@ class MathFlipGame:
     def draw_game(self):
         surf = self.DISPLAYSURF
         surf.fill(BG_COLOR)
-        # Title and HUD
+        # Title/HUD
         title = FONT_MEDIUM.render(f"Math Flip Game - {self.difficulty}", True, PRIMARY_COLOR)
         surf.blit(title, (self.WINDOW_WIDTH//2 - title.get_width()//2, 20))
         score_text = FONT_MEDIUM.render(f"Score: {self.score}", True, TEXT_COLOR)
@@ -359,7 +359,7 @@ class MathFlipGame:
         progress_text = FONT_SMALL.render(f"Matched: {self.correct_matches}/{self.total_matches}", True, TEXT_COLOR)
         surf.blit(progress_text, (self.WINDOW_WIDTH//2 - progress_text.get_width()//2, 54))
 
-        # --- Draw grid (scaled and centered, rounded, themed) ---
+        # Draw grid
         answer_cells = []
         for i in range(self.GRID_SIZE):
             for j in range(self.GRID_SIZE):
@@ -391,7 +391,7 @@ class MathFlipGame:
                                 if question_text:
                                     surf.blit(question_text, (cell_rect.centerx - question_text.get_width()//2, cell_rect.centery - question_text.get_height()//2))
 
-        # If dragging, draw the selected question at mouse position
+        # Draw dragged question
         if self.dragging and self.selected_cell is not None:
             i, j = self.selected_cell
             cell_value = self.grid[i][j]
@@ -430,7 +430,7 @@ class MathFlipGame:
                         pygame.draw.rect(surf, SECONDARY_COLOR, question_rect.inflate(20, 10), 2, border_radius=10)
                         surf.blit(question_text, question_rect)
 
-        # --- Draw answer bar (centered below grid, themed, rounded) ---
+        # Draw answer bar
         if self.answers and len(self.answers) > 0:
             answer_bar_width = min(self.WINDOW_WIDTH - 40, self.GRID_PIXEL_SIZE)
             answer_width = answer_bar_width // len(self.answers)
@@ -452,7 +452,7 @@ class MathFlipGame:
                     surf.blit(answer_text, (cell_rect.centerx - answer_text.get_width()//2, cell_rect.centery - answer_text.get_height()//2))
                 answer_cells.append(cell_rect)
 
-        # --- Draw back/menu button (bottom left, themed) ---
+        # Draw back/menu btn
         back_button = pygame.Rect(32, self.WINDOW_HEIGHT - 70, 120, 44)
         pygame.draw.rect(surf, BUTTON_COLOR, back_button, border_radius=12)
         back_text = FONT_SMALL.render("Menu", True, BUTTON_TEXT_COLOR)
@@ -463,10 +463,10 @@ class MathFlipGame:
     def draw_game_over(self):
         surf = self.DISPLAYSURF
         surf.fill(WHITE)
-        # Draw title
+        # Title
         title = FONT_LARGE.render("Game Over!", True, BLUE)
         surf.blit(title, (self.WINDOW_WIDTH//2 - title.get_width()//2, 100))
-        # Calculate and display bonus (remaining time)
+        # Show bonus
         if not hasattr(self, '_bonus_added'):
             self._bonus_value = self.timer if self.timer > 0 else 0
             self.score += self._bonus_value
@@ -478,10 +478,10 @@ class MathFlipGame:
             score_y = 200
         else:
             score_y = 200
-        # Draw score
+        # Score
         score_text = FONT_LARGE.render(f"Your Score: {self.score}", True, BLACK)
         surf.blit(score_text, (self.WINDOW_WIDTH//2 - score_text.get_width()//2, score_y))
-        # Draw input for player name if it's a high score
+        # Name input if high score
         highscores = load_highscores()
         scores_list = highscores.get(self.difficulty, [])
         is_high_score = (len(scores_list) < 5 or (scores_list and self.score > min(score["score"] for score in scores_list)))
@@ -491,12 +491,12 @@ class MathFlipGame:
             prompt_text = FONT_MEDIUM.render("New High Score! Enter your name:", True, BLACK)
             surf.blit(prompt_text, (self.WINDOW_WIDTH//2 - prompt_text.get_width()//2, 280))
             name_input_rect = pygame.Rect(self.WINDOW_WIDTH//2 - 150, 330, 300, 40)
-            # Always white background for input
+            # White bg for input
             pygame.draw.rect(surf, WHITE, name_input_rect, border_radius=10)
             pygame.draw.rect(surf, BLACK, name_input_rect, 2, border_radius=10)
             name_text = FONT_MEDIUM.render(self.player_name, True, BLACK)
             surf.blit(name_text, (name_input_rect.x + 10, name_input_rect.centery - name_text.get_height()//2))
-            # Draw submit button if name is entered
+            # Submit btn if name entered
             if len(self.player_name) > 0:
                 submit_button = pygame.Rect(self.WINDOW_WIDTH//2 - 75, 390, 150, 44)
                 # Match Tetris Math button style: blue, border radius 10, white text
@@ -610,7 +610,7 @@ class MathFlipGame:
             if key == K_BACKSPACE:
                 self.player_name = self.player_name[:-1]
             elif key == K_RETURN and len(self.player_name) > 0:
-                # Add remaining time as bonus before saving high score
+                # Time bonus before save
                 highscores = load_highscores()
                 scores_list = highscores.get(self.difficulty, [])
                 is_high_score = (len(scores_list) < 5 or (scores_list and self.score > min(score["score"] for score in scores_list)))
@@ -626,10 +626,9 @@ class MathFlipGame:
     def update_timer(self):
         if self.state == "game":
             current_time = pygame.time.get_ticks()
-            if current_time - self.last_time >= 1000:  # 1 second passed
+            if current_time - self.last_time >= 1000:  # 1s passed
                 self.timer -= 1
                 self.last_time = current_time
-                
                 if self.timer <= 0:
                     self.state = "game_over"
     
@@ -656,7 +655,7 @@ class MathFlipGame:
         running = True
         while running:
             mouse_pos = pygame.mouse.get_pos()
-            # Process events
+            # Events
             for event in pygame.event.get():
                 if event.type == QUIT:
                     running = False
@@ -679,9 +678,9 @@ class MathFlipGame:
                         self.handle_mouse_up(mouse_pos, answer_cells)
                 elif event.type == KEYDOWN:
                     self.handle_key_down(event.key)
-            # Update timer
+            # Timer
             self.update_timer()
-            # Draw current state
+            # Draw state
             if self.state == "menu":
                 self.draw_menu()
             elif self.state == "difficulty":
@@ -697,7 +696,7 @@ class MathFlipGame:
 
 
 
-# Entry point for launcher integration
+# Entry for launcher
 def launch_math_flip(screen_width=None, screen_height=None, fullscreen=True):
     import pygame
     screen = pygame.display.get_surface()

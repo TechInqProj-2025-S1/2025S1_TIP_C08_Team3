@@ -15,7 +15,7 @@ def test_tetromino_class_exists():
     from games.TetrisMath import tetromino
     assert hasattr(tetromino, 'Tetromino')
 
-# TetrisGame logic
+# Game logic
 def test_tetris_game_init():
     from games.TetrisMath.tetris import TetrisGame
     game = TetrisGame(player_name="Test", difficulty_mode="basic")
@@ -50,7 +50,7 @@ def test_menu_buttons(monkeypatch):
     assert hasattr(ui, 'menu_buttons')
     assert len(ui.menu_buttons) >= 1
 
-# Tetromino create/rotate
+# Piece/rotate
 def test_tetromino_piece_creation_and_rotation():
     from games.TetrisMath.tetromino import Tetromino, SHAPES
     # Use O piece
@@ -67,7 +67,7 @@ def test_tetromino_piece_creation_and_rotation():
     is_o_piece = len(piece.shape) == 2 and len(piece.shape[0]) == 2 and all(all(cell for cell in row) for row in piece.shape)
     assert shape_changed or is_o_piece
 
-# MathChallenge create
+# Math create
 def test_math_challenge_creation():
     from games.TetrisMath.math_challenge import MathChallenge
     # Basic diff
@@ -94,7 +94,7 @@ def test_game_over_state(monkeypatch):
     game.set_state("game_over")
     assert game.game_over is True
 
-# Grid/collision
+# Grid/collide
 def test_grid_manipulation():
     from games.TetrisMath.tetris import TetrisGame
     
@@ -149,7 +149,7 @@ def test_ui_button(monkeypatch):
     button.update((50, 50))
     assert button.hovered is False
 
-# MathChallenge play
+# Math play
 def test_math_challenge_gameplay():
     from games.TetrisMath.tetris import TetrisGame
     from games.TetrisMath.math_challenge import MathChallenge
@@ -202,7 +202,7 @@ def test_ui_state_management(monkeypatch):
     assert ui.state == 'playing'
     assert ui.tetris_game is not None
 
-# MathChallenge digit
+# Digit entry
 def test_math_challenge_digit_entry():
     from games.TetrisMath.math_challenge import MathChallenge
     challenge = MathChallenge(difficulty=1)
@@ -228,7 +228,7 @@ def test_math_challenge_digit_entry():
     challenge.remove_digit()
     assert challenge.user_answer == ""
 
-# Master diff math
+# Master diff
 def test_master_difficulty_math():
     from games.TetrisMath.math_challenge import MathChallenge
     challenge = MathChallenge(difficulty=4)
@@ -242,11 +242,11 @@ def test_master_difficulty_math():
         if any(n > 10 for n in numbers):
             has_larger_number = True
         # All operations should be valid
-        assert any(op in challenge.equation for op in ['+', '-', '×', '/'])
+        assert any(op in challenge.equation for op in ['+', '-', '×', '÷'])
     # Master difficulty should sometimes use larger numbers
     assert has_larger_number
 
-# Piece move
+# Move piece
 def test_piece_movement():
     from games.TetrisMath.tetris import TetrisGame
     
@@ -268,7 +268,7 @@ def test_piece_movement():
     game.soft_drop()
     assert game.current_piece.y == initial_y + 1
 
-# Piece rotate
+# Rotate
 def test_piece_rotation():
     from games.TetrisMath.tetris import TetrisGame
 

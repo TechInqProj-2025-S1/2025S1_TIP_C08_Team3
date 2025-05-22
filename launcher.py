@@ -1,6 +1,4 @@
-"""
-Main launcher for the game application.
-"""
+# Main launcher
 # pylint: disable=line-too-long, too-many-locals, too-many-branches, too-many-statements, superfluous-parens, no-member
 import sys
 import os
@@ -14,18 +12,18 @@ from launcher.constants import (
 )
 from launcher.button import Button
 from launcher.game import Game
-# get_high_scores is only used in menus, not here
+# get_high_scores only in menus
 from launcher.menus import show_high_scores_menu
 from launcher.settings_menu import show_settings_menu
 
 
 
-# Initialize pygame
+# Init pygame
 # pylint: disable=no-member
 pygame.init()  # pylint: disable=no-member
-pygame.mixer.init()  # For sound effects
+pygame.mixer.init()  # Sound
 
-# Fonts (must be initialized after pygame.init)
+# Fonts (after pygame.init)
 TITLE_FONT = pygame.font.SysFont('arial', 60, bold=True)
 SUBTITLE_FONT = pygame.font.SysFont('arial', 36, bold=True)
 BODY_FONT = pygame.font.SysFont('arial', 32)
@@ -33,9 +31,8 @@ SCORE_FONT = pygame.font.SysFont('arial', 28)
 
 
 
-# Create the screen in FULLSCREEN BORDERLESS mode and get actual monitor size
+# Fullscreen borderless, get monitor size
 # pylint: disable=no-member
-
 info = pygame.display.Info()  # pylint: disable=no-member
 real_screen_width = info.current_w
 real_screen_height = info.current_h
@@ -46,15 +43,15 @@ screen = pygame.display.set_mode(
 pygame.display.set_caption(TITLE)
 clock = pygame.time.Clock()
 
-# Ensure the scores directory exists
+# Make scores dir if missing
 if not os.path.exists("scores"):
     os.makedirs("scores")
 
 
 def main():
-    """Main function for the game launcher. Sets up UI, handles events, and launches games."""
+    # Main launcher logic
     fonts = (TITLE_FONT, SUBTITLE_FONT, BODY_FONT, SCORE_FONT)
-    # Save display settings to config for games to read
+    # Save display settings to config
     config_path = os.path.join(os.getcwd(), "config.json")
     if not os.path.exists(config_path):
         config = {"launcher": {}, "games": {}}
@@ -69,7 +66,7 @@ def main():
     with open(config_path, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
 
-    # Define the games
+    # Game list
     games = [
         Game("Word Pop", "Click balloons with correctly spelled words", "word_pop"),
         Game("Math Flip", "Match math questions to answers in a grid", "MathFlip.voltorb"),
@@ -82,20 +79,20 @@ def main():
         )
     ]
 
-    # Dynamic, Responsive base on current Screen Resolution
+    # Responsive layout
     num_cols = 2
     num_rows = 3
     button_width = 300
     button_height = 120
     h_gap = 80
     v_gap = 60
-    # Calculate total width and height of the button grid
+    # Button grid size
     total_width = num_cols * button_width + (num_cols - 1) * h_gap
     total_height = num_rows * button_height + (num_rows - 1) * v_gap
     # Center grid
     start_x = (real_screen_width - total_width) // 2
     start_y = 160
-    # If screen is too small, scale down buttons and gaps
+    # Scale down if small screen
     min_margin = 40
     if real_screen_width < total_width + min_margin * 2 or real_screen_height < total_height + 350:
         scale_x = (real_screen_width - min_margin * 2) / total_width
@@ -110,7 +107,7 @@ def main():
         start_x = (real_screen_width - total_width) // 2
         start_y = max(100, (real_screen_height - total_height) // 2 - 60)
 
-    # Game Button
+    # Game buttons
     buttons = []
     for i, game in enumerate(games):
         row = i // num_cols
@@ -125,7 +122,7 @@ def main():
     menu_button_width = int(0.4 * total_width // 2)
     menu_button_width = max(menu_button_width, 180)
     menu_button_height = 60
-    # Button group centered
+    # Center menu group
     # pylint: disable=line-too-long
     total_menu_width = menu_button_width * 2 + menu_gap  # no parens, avoid C0325
     menu_start_x = real_screen_width // 2 - total_menu_width // 2
@@ -146,15 +143,14 @@ def main():
         color=WARNING_COLOR, hover_color=SECONDARY_WARNING_COLOR, font=BODY_FONT
     )
 
-    # Ensure config.json exists
+    # Make config.json if missing
     config_path = os.path.join(os.getcwd(), "config.json")
     if not os.path.exists(config_path):
         with open(config_path, "w", encoding="utf-8") as f:
             json.dump({"launcher": {}, "games": {}}, f, indent=2)
 
-    # pylint: disable=too-many-locals, too-many-branches, too-many-statements, line-too-long, no-member, superfluous-parens
 
-    # Main game loop
+    # Main loop
     running = True
     while running:
         screen.fill(BG_COLOR)
@@ -165,16 +161,16 @@ def main():
                 running = False
             if event.type == pygame.MOUSEBUTTONDOWN:  # pylint: disable=no-member
                 mouse_click = True
-        # Tittle
+        # Title
         title_text = TITLE_FONT.render(TITLE, True, TEXT_COLOR)
         title_rect = title_text.get_rect(center=(real_screen_width // 2, start_y // 2))
         screen.blit(title_text, title_rect)
-        # Draw and update game buttons
+        # Game buttons
         for button, game in buttons:
             button.update(mouse_pos)
             button.draw(screen)
             if button.is_clicked(mouse_pos, mouse_click):
-                # Pass launcher display settings to the game
+                # Pass display settings to game
                 if game.name == "Tetris Math":
                     game.launch(
                         screen_width=real_screen_width,
@@ -183,19 +179,19 @@ def main():
                     )
                 else:
                     game.launch()
-        # High scores button
+        # High scores
         high_scores_button.update(mouse_pos)
         high_scores_button.draw(screen)
         if high_scores_button.is_clicked(mouse_pos, mouse_click):
             show_high_scores_menu(games, screen, clock, fonts)
 
-        # Settings button
+        # Settings
         settings_button.update(mouse_pos)
         settings_button.draw(screen)
         if settings_button.is_clicked(mouse_pos, mouse_click):
             show_settings_menu(games, screen, clock, config_path, fonts)
 
-        # Exit button
+        # Exit
         exit_button.update(mouse_pos)
         exit_button.draw(screen)
         if exit_button.is_clicked(mouse_pos, mouse_click):
@@ -207,6 +203,6 @@ def main():
     sys.exit()
 
 
-# Entry point
+# Run main
 if __name__ == "__main__":
     main()

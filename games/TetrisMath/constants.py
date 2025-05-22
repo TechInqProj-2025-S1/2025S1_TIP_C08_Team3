@@ -28,12 +28,12 @@ TEXT_COLOR = (44, 62, 80)
 BLOCK_COLORS = [PRIMARY_COLOR, SECONDARY_COLOR, ACCENT_COLOR, WARNING_COLOR, (241, 196, 15), PURPLE, ORANGE]
 
 
-# Font getter to ensure pygame is initialized before font creation
+
+# Game constants and colors
 _fonts_cache = None
 def get_fonts():
     global _fonts_cache
     if _fonts_cache is None:
-        # Defensive: ensure font module is initialized
         if not pygame.font.get_init():
             pygame.font.init()
         _fonts_cache = {
