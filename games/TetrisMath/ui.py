@@ -1,3 +1,5 @@
+
+# UI for Tetris Math game
 import pygame
 from .constants import (
     BG_COLOR, PRIMARY_COLOR, ACCENT_COLOR, WHITE, BLACK, TEXT_COLOR, get_fonts
@@ -5,6 +7,7 @@ from .constants import (
 from .tetris import TetrisGame
 
 class Button:
+    # Simple button for UI
     def __init__(self, rect, text, color, hover_color, font, text_color=BLACK):
         self.rect = pygame.Rect(rect)
         self.text = text
@@ -24,6 +27,7 @@ class Button:
         return self.rect.collidepoint(mouse_pos) and mouse_click
 
 class TetrisMathUI:
+    # Main UI class for Tetris Math
     def __init__(self, screen_width=None, screen_height=None, fullscreen=True, borderless=False, screen=None):
         import os
         import json
@@ -89,6 +93,7 @@ class TetrisMathUI:
         if not hasattr(self, 'remote_tetris_game'):
             self.remote_tetris_game = None
     def init_menu_buttons(self):
+        # Setup menu buttons
         fonts = get_fonts()
         font = fonts['BODY_FONT']
         sw, sh = self.screen_width, self.screen_height
@@ -98,6 +103,7 @@ class TetrisMathUI:
         self.back_btn = Button((sw//2-90, sh//2+100, 180, 44), "Back to Menu", (52, 152, 219), (41, 128, 185), font, text_color=WHITE)
         self.menu_buttons = [self.basic_btn, self.master_btn, self.multi_btn, self.back_btn]
     def run(self):
+        # Main UI/game loop
         from .constants import ACCENT_COLOR, WARNING_COLOR
         import random
         while self.running:
@@ -252,6 +258,7 @@ class TetrisMathUI:
             pygame.display.flip()
 
     def draw_waiting_overlay(self, mouse_pos, mouse_click):
+        # Show waiting overlay for host
         sw, sh = self.screen_width, self.screen_height
         fonts = get_fonts()
         self.screen.fill(BG_COLOR)
@@ -281,6 +288,7 @@ class TetrisMathUI:
             self.remote_tetris_game = None
 
     def draw_connecting_overlay(self, mouse_pos, mouse_click):
+        # Show connecting overlay for client
         sw, sh = self.screen_width, self.screen_height
         fonts = get_fonts()
         self.screen.fill(BG_COLOR)
@@ -309,6 +317,7 @@ class TetrisMathUI:
             self.tetris_game = None
             self.remote_tetris_game = None
     def draw_menu(self, mouse_pos, mouse_click):
+        # Draw main menu
         self.screen.fill(BG_COLOR)
         sw, sh = self.screen_width, self.screen_height
         fonts = get_fonts()
@@ -383,6 +392,7 @@ class TetrisMathUI:
         self.screen.blit(instr, (center_x - instr.get_width() // 2, y))
 
     def show_multiplayer_mode_prompt(self):
+        # Show multiplayer host/join prompt
         # Modal for Host/Join selection, then show waiting/connecting overlay
         running = True
         sw, sh = self.screen_width, self.screen_height
@@ -419,6 +429,7 @@ class TetrisMathUI:
             pygame.display.flip()
 
     def _start_multiplayer_connection(self, mode):
+        # Start multiplayer connection
         import os
         import json
         config_path = os.path.join(os.getcwd(), "config.json")
@@ -439,6 +450,7 @@ class TetrisMathUI:
             self.state = 'menu'
 
     def _on_multiplayer_connected(self):
+        # Callback for multiplayer connect
         # Called from network thread when connection is established
         # Switch to main thread for UI/game start
         import threading
@@ -448,6 +460,7 @@ class TetrisMathUI:
             self._start_multiplayer_game()
 
     def _start_multiplayer_game(self):
+        # Start multiplayer game
         self.tetris_game = TetrisGame(player_name=self.name, difficulty_mode=self.difficulty, multiplayer_mode=self.multiplayer_mode)
         if self.network:
             self.tetris_game.network = self.network  # type: ignore
@@ -455,6 +468,7 @@ class TetrisMathUI:
         self.remote_tetris_game = TetrisGame(player_name="Player 2", difficulty_mode=self.difficulty, multiplayer_mode=self.multiplayer_mode)
         self.state = 'playing'
     def start_game(self, multiplayer_mode=None):
+        # Start single or multiplayer game
         self.multiplayer_mode = multiplayer_mode
         self.network = None
         # Load multiplayer config if needed
@@ -482,6 +496,7 @@ class TetrisMathUI:
         self.state = 'playing'
 
     def on_network_event(self, event):
+        # Handle network event
         # Called from network thread when an event is received
         # If it's a state_sync, update remote_tetris_game; else, pass to local game
         if not isinstance(event, dict):
@@ -493,6 +508,7 @@ class TetrisMathUI:
             if self.tetris_game:
                 self.tetris_game.handle_network_event(event)
     def draw_game(self):
+        # Draw game and sidebar
         if not self.tetris_game:
             return
         from .constants import GRAY
@@ -585,6 +601,7 @@ class TetrisMathUI:
             self.draw_feedback_overlay()
 
     def draw_math_overlay(self):
+        # Draw math challenge overlay
         if not self.tetris_game:
             return
         sw, sh = self.screen_width, self.screen_height
@@ -604,6 +621,7 @@ class TetrisMathUI:
         # No Back to Menu button in math overlay
 
     def draw_feedback_overlay(self):
+        # Draw feedback overlay
         if not self.tetris_game:
             return
         sw, sh = self.screen_width, self.screen_height
@@ -619,6 +637,7 @@ class TetrisMathUI:
         # No Back to Menu button in feedback overlay
 
     def draw_game_over(self, mouse_pos, mouse_click):
+        # Draw game over screen
         self.screen.fill(BG_COLOR)
         fonts = get_fonts()
         font = pygame.font.SysFont('Arial', 60, bold=True)

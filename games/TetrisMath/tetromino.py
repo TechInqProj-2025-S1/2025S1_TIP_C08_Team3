@@ -1,7 +1,7 @@
-# import random
+
+# Tetromino shapes and logic
 from .constants import BLOCK_COLORS
 
-# Tetrimino shapes and colors
 SHAPES = [
     [[1, 1, 1, 1]],
     [[1, 1], [1, 1]],
@@ -14,6 +14,7 @@ SHAPES = [
 SHAPE_COLORS = BLOCK_COLORS[:7]
 
 class Tetromino:
+    # Tetromino piece
     def __init__(self, x, y, shape):
         self.x = x
         self.y = y
@@ -22,10 +23,12 @@ class Tetromino:
         self.rotation = 0
 
     def rotate(self):
+        # Rotate piece
         self.rotation = (self.rotation + 1) % 4
         self.shape = self.get_rotated_shape()
 
     def get_rotated_shape(self):
+        # Get rotated shape
         if self.shape is not None:
             if self.rotation == 0:
                 return self.shape

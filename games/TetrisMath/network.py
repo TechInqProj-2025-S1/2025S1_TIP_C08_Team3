@@ -3,21 +3,23 @@ import threading
 import json
 
 class TetrisNetwork:
+    # Handles multiplayer networking
     def __init__(self, mode, ip, port, on_event=None, on_connect=None):
-        self.mode = mode  # mode
+        self.mode = mode  # host or join
         self.ip = ip
         self.port = port
-        self.host_ip = ip  # test
-        self.host_port = port  # test
+        self.host_ip = ip
+        self.host_port = port
         self.sock = None
         self.conn = None
         self.running = False
-        self.on_event = on_event  # event cb
-        self.on_connect = on_connect  # connect cb
+        self.on_event = on_event
+        self.on_connect = on_connect
         self.thread = None
-        self.connected = False  # test
+        self.connected = False
 
     def start(self):
+        # Start network thread
         if self.mode == 'host':
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -31,13 +33,14 @@ class TetrisNetwork:
             threading.Thread(target=self._connect_and_start, daemon=True).start()
 
     def _accept_and_start(self):
+        # Accept connection (host)
         try:
             if self.sock is None:
                 return
             self.conn, addr = self.sock.accept()
             print(f"[TetrisNetwork] Connected by {addr}")
             self.running = True
-            self.connected = True  # ok
+            self.connected = True
             if self.on_connect:
                 self.on_connect()
             self.thread = threading.Thread(target=self.listen, daemon=True)
@@ -46,13 +49,14 @@ class TetrisNetwork:
             print(f"[TetrisNetwork] Accept failed: {e}")
 
     def _connect_and_start(self):
+        # Connect to host
         try:
             if self.sock is None:
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.sock.connect((self.ip, self.port))
             self.conn = self.sock
             self.running = True
-            self.connected = True  # ok
+            self.connected = True
             if self.on_connect:
                 self.on_connect()
             self.thread = threading.Thread(target=self.listen, daemon=True)
@@ -61,6 +65,7 @@ class TetrisNetwork:
             print(f"[TetrisNetwork] Connection error: {e}")
 
     def listen(self):
+        # Listen for network events
         while self.running:
             try:
                 if self.conn is None:
@@ -81,6 +86,7 @@ class TetrisNetwork:
         self.running = False
 
     def send_event(self, event):
+        # Send event to peer
         try:
             if self.conn is not None:
                 msg = json.dumps(event).encode('utf-8')
@@ -91,8 +97,9 @@ class TetrisNetwork:
             print(f"[TetrisNetwork] Send err: {e}")
 
     def close(self):
+        # Close network
         self.running = False
-        self.connected = False  # close
+        self.connected = False
         try:
             if self.conn:
                 self.conn.close()

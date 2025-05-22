@@ -1,7 +1,7 @@
 import pytest
 
 def test_score_loading():
-    """Test that scores can be loaded from a file."""
+    """Load file."""
     from launcher.score import get_high_scores
     
     # Using mock to avoid actual file operations
@@ -28,7 +28,7 @@ def test_score_loading():
         assert scores[0]["score"] == 100
 
 def test_score_loading_no_file():
-    """Test behavior when score file does not exist."""
+    """No file."""
     from launcher.score import get_high_scores
     
     with pytest.MonkeyPatch().context() as monkeypatch:

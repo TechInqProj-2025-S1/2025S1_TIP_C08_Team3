@@ -32,7 +32,7 @@ def mock_font(monkeypatch):
 
 @pytest.fixture
 def tmp_config_file(tmp_path):
-    """Create a temporary config file for testing."""
+    """Temp config."""
     import json
     config_path = tmp_path / "config.json"
     config_data = {
@@ -53,7 +53,7 @@ def tmp_config_file(tmp_path):
 
 @pytest.fixture
 def mock_event_queue(monkeypatch):
-    """Mock pygame event queue for testing UI interactions."""
+    """Mock events."""
     events = []
     
     def mock_get():
