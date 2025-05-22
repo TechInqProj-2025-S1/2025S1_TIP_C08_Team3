@@ -84,9 +84,40 @@ def show_game_high_scores(game, screen, clock, fonts):
     """
     # pylint: disable=too-many-locals
     title_font, _subtitle_font, body_font, score_font = fonts
-    scores = get_high_scores(game.name)
-    # Defensive: filter out entries without a valid 'score' key
-    scores = [s for s in scores if isinstance(s, dict) and 'score' in s]
+    from .score import (
+        get_high_scores,
+        get_spell_quest_leaderboard,
+        get_sequence_game_high_score,
+        get_typing_game_leaderboard,
+        get_word_pop_high_score
+    )
+    # Select the appropriate high score/leaderboard reader
+    if game.name == "Spell Quest":
+        leaderboard = get_spell_quest_leaderboard()
+        # Format: list of dicts with 'name' and 'score'
+        scores = [
+            {"name": entry.get("name", "Unknown"), "score": entry.get("score", 0)}
+            for entry in leaderboard if isinstance(entry, dict)
+        ]
+    elif game.name == "Sequence Game":
+        high_score = get_sequence_game_high_score()
+        scores = [{"name": "Best Player", "score": high_score}]
+    elif game.name == "Typing Game":
+        leaderboard = get_typing_game_leaderboard()
+        scores = [
+            {"name": entry.get("name", "Unknown"), "score": entry.get("score", 0), "difficulty": entry.get("difficulty", "N/A")}
+            for entry in leaderboard if isinstance(entry, dict)
+        ]
+    elif game.name == "Word Pop":
+        name, score = get_word_pop_high_score()
+        if name is not None:
+            scores = [{"name": name, "score": score}]
+        else:
+            scores = []
+    else:
+        scores = get_high_scores(game.name)
+        # Defensive: filter out entries without a valid 'score' key
+        scores = [s for s in scores if isinstance(s, dict) and 'score' in s]
     running = True
     real_screen_width, real_screen_height = screen.get_width(), screen.get_height()
     back_button = Button(
@@ -112,24 +143,36 @@ def show_game_high_scores(game, screen, clock, fonts):
             no_scores_rect = no_scores.get_rect(center=(real_screen_width // 2, real_screen_height // 2))
             screen.blit(no_scores, no_scores_rect)
         else:
-            sorted_scores = sorted(scores, key=lambda x: x.get("score", 0), reverse=True)
-            for i, score in enumerate(sorted_scores[:10]):
-                difficulty = score.get('difficulty')
-                if difficulty is None:
-                    if 'level' in score:
-                        difficulty = f"Level {score['level']}"
-                    elif 'lines_cleared' in score:
-                        difficulty = f"Lines {score['lines_cleared']}"
+            # Sort and display scores appropriately for each game
+            if game.name == "Sequence Game":
+                # Only one high score
+                score = scores[0]
+                score_text = score_font.render(f"High Score: {score['score']}", True, TEXT_COLOR)
+                screen.blit(score_text, (real_screen_width // 2 - 100, 200))
+            elif game.name == "Word Pop":
+                score = scores[0]
+                score_text = score_font.render(f"{score['name']}: {score['score']}", True, TEXT_COLOR)
+                screen.blit(score_text, (real_screen_width // 2 - 100, 200))
+            else:
+                sorted_scores = sorted(scores, key=lambda x: x.get("score", 0), reverse=True)
+                for i, score in enumerate(sorted_scores[:10]):
+                    difficulty = score.get('difficulty')
+                    if difficulty is None:
+                        if 'level' in score:
+                            difficulty = f"Level {score['level']}"
+                        elif 'lines_cleared' in score:
+                            difficulty = f"Lines {score['lines_cleared']}"
+                        else:
+                            difficulty = None
+                    name = score.get('name', 'Unknown')
+                    score_val = score.get('score', 0)
+                    # Only show difficulty if present
+                    if difficulty:
+                        score_line = f"{i+1}. {name}: {score_val} (Difficulty: {difficulty})"
                     else:
-                        difficulty = "N/A"
-                # Defensive: handle missing name or score keys
-                name = score.get('name', 'Unknown')
-                score_val = score.get('score', 0)
-                score_text = score_font.render(
-                    f"{i+1}. {name}: {score_val} (Difficulty: {difficulty})",
-                    True, TEXT_COLOR
-                )
-                screen.blit(score_text, (real_screen_width // 2 - 250, 180 + 50 * i))
+                        score_line = f"{i+1}. {name}: {score_val}"
+                    score_text = score_font.render(score_line, True, TEXT_COLOR)
+                    screen.blit(score_text, (real_screen_width // 2 - 250, 180 + 50 * i))
         back_button.update(mouse_pos)
         back_button.draw(screen)
         if back_button.is_clicked(mouse_pos, mouse_click):
