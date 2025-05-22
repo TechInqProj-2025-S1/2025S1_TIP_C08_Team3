@@ -1,4 +1,4 @@
 pygame
-aubio
 numpy
 pylint
+tkinter
