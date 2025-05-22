@@ -23,6 +23,7 @@ leaderboard = load_leaderboard()
 # Initialize Pygame
 pygame.init()
 
+
 # Fullscreen setup
 infoObject = pygame.display.Info()
 WIDTH, HEIGHT = infoObject.current_w, infoObject.current_h
