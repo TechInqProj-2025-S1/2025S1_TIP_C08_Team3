@@ -24,7 +24,7 @@ class Button:
         return self.rect.collidepoint(mouse_pos) and mouse_click
 
 class TetrisMathUI:
-    def __init__(self, screen_width=None, screen_height=None, fullscreen=True, borderless=False):
+    def __init__(self, screen_width=None, screen_height=None, fullscreen=True, borderless=False, screen=None):
         import os
         import json
         pygame.init()
@@ -64,12 +64,15 @@ class TetrisMathUI:
             if screen_height is None:
                 screen_height = info.current_h
             self.screen_width, self.screen_height = screen_width, screen_height
-        if borderless:
-            flags = pygame.NOFRAME
+        if screen is not None:
+            self.screen = screen
         else:
-            flags = pygame.FULLSCREEN if fullscreen else 0
-        self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), flags)
-        pygame.display.set_caption("Tetris Math")
+            if borderless:
+                flags = pygame.NOFRAME
+            else:
+                flags = pygame.FULLSCREEN if fullscreen else 0
+            self.screen = pygame.display.set_mode((self.screen_width, self.screen_height), flags)
+            pygame.display.set_caption("Tetris Math")
         self.clock = pygame.time.Clock()
         self.state = 'menu'  # menu, playing, game_over
         self.name = ''

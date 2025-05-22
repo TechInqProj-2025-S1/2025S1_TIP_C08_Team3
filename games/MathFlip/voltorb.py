@@ -110,7 +110,7 @@ def update_highscores(difficulty, player_name, score):
 
 # Game class
 class MathFlipGame:
-    def __init__(self, screen_width=None, screen_height=None, fullscreen=True):
+    def __init__(self, screen_width=None, screen_height=None, fullscreen=True, screen=None):
         import os
         import json
         global DISPLAYSURF, CLOCK, WINDOW_WIDTH, WINDOW_HEIGHT
@@ -134,10 +134,13 @@ class MathFlipGame:
             screen_height = info.current_h
         WINDOW_WIDTH = screen_width
         WINDOW_HEIGHT = screen_height
-        # Always use fullscreen borderless (NOFRAME)
-        flags = pygame.NOFRAME
-        DISPLAYSURF = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), flags)
-        pygame.display.set_caption('Math Flip Game')
+        if screen is not None:
+            DISPLAYSURF = screen
+        else:
+            # Always use fullscreen borderless (NOFRAME)
+            flags = pygame.NOFRAME
+            DISPLAYSURF = pygame.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT), flags)
+            pygame.display.set_caption('Math Flip Game')
         CLOCK = pygame.time.Clock()
         # --- Dynamic grid scaling ---
         self.GRID_SIZE = GRID_SIZE
@@ -677,5 +680,7 @@ class MathFlipGame:
 
 # Entry point for launcher integration
 def launch_math_flip(screen_width=None, screen_height=None, fullscreen=True):
-    game = MathFlipGame(screen_width=screen_width, screen_height=screen_height, fullscreen=fullscreen)
+    import pygame
+    screen = pygame.display.get_surface()
+    game = MathFlipGame(screen_width=screen_width, screen_height=screen_height, fullscreen=fullscreen, screen=screen)
     game.run()
