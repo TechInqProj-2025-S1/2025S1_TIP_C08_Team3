@@ -9,5 +9,3 @@ def main(screen_width=None, screen_height=None, fullscreen=True, screen=None):
     ui = TetrisMathUI(screen_width=screen_width, screen_height=screen_height, fullscreen=fullscreen, screen=screen)
     ui.run()
 
-if __name__ == "__main__":
-    main()

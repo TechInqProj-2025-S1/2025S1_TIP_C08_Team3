@@ -53,7 +53,7 @@ class Game:
                     mathflip_main(screen=screen)
                 except ImportError:
                     from games.MathFlip.voltorb import launch_math_flip  # noqa: E402
-                    launch_math_flip(screen=screen)
+                    launch_math_flip()
                 return True
             # For test: always try importlib if module_name is set
             if self.module_name:

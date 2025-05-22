@@ -398,12 +398,38 @@ class MathFlipGame:
             cell_value = self.grid[i][j]
             if cell_value is not None and cell_value[0] is not None:
                 mouse_pos = pygame.mouse.get_pos()
+                # Check if hovering over any answer cell
+                hover_on_answer = False
+                hover_rect = None
+                if self.answers and len(self.answers) > 0:
+                    answer_bar_width = min(WINDOW_WIDTH - 40, self.GRID_PIXEL_SIZE)
+                    answer_width = answer_bar_width // len(self.answers)
+                    answer_bar_x = (WINDOW_WIDTH - answer_bar_width) // 2
+                    answer_bar_y = self.GRID_OFFSET_Y + self.GRID_PIXEL_SIZE + 40
+                    for idx in range(len(self.answers)):
+                        cell_rect = pygame.Rect(
+                            answer_bar_x + idx * answer_width,
+                            answer_bar_y,
+                            answer_width,
+                            ANSWER_CELL_HEIGHT
+                        )
+                        if cell_rect.collidepoint(mouse_pos):
+                            hover_on_answer = True
+                            hover_rect = cell_rect
+                            break
                 question_text = FONT_SMALL.render(str(cell_value[0]), True, WHITE)
                 if question_text:
-                    question_rect = question_text.get_rect(center=mouse_pos)
-                    pygame.draw.rect(DISPLAYSURF, PRIMARY_COLOR, question_rect.inflate(20, 10), border_radius=10)
-                    pygame.draw.rect(DISPLAYSURF, SECONDARY_COLOR, question_rect.inflate(20, 10), 2, border_radius=10)
-                    DISPLAYSURF.blit(question_text, question_rect)
+                    if hover_on_answer and hover_rect is not None:
+                        # Draw the question centered above the answer cell
+                        qrect = question_text.get_rect(midbottom=(hover_rect.centerx, hover_rect.top - 8))
+                        pygame.draw.rect(DISPLAYSURF, PRIMARY_COLOR, qrect.inflate(20, 10), border_radius=10)
+                        pygame.draw.rect(DISPLAYSURF, SECONDARY_COLOR, qrect.inflate(20, 10), 2, border_radius=10)
+                        DISPLAYSURF.blit(question_text, qrect)
+                    else:
+                        question_rect = question_text.get_rect(center=mouse_pos)
+                        pygame.draw.rect(DISPLAYSURF, PRIMARY_COLOR, question_rect.inflate(20, 10), border_radius=10)
+                        pygame.draw.rect(DISPLAYSURF, SECONDARY_COLOR, question_rect.inflate(20, 10), 2, border_radius=10)
+                        DISPLAYSURF.blit(question_text, question_rect)
 
         # --- Draw answer bar (centered below grid, themed, rounded) ---
         if self.answers and len(self.answers) > 0:
@@ -455,10 +481,8 @@ class MathFlipGame:
         # Draw score
         score_text = FONT_LARGE.render(f"Your Score: {self.score}", True, BLACK)
         DISPLAYSURF.blit(score_text, (WINDOW_WIDTH//2 - score_text.get_width()//2, score_y))
-        
         # Draw input for player name if it's a high score
         highscores = load_highscores()
-        # Defensive: ensure highscores[self.difficulty] is a list
         scores_list = highscores.get(self.difficulty, [])
         is_high_score = (len(scores_list) < 5 or (scores_list and self.score > min(score["score"] for score in scores_list)))
         name_input_rect = None
@@ -467,22 +491,20 @@ class MathFlipGame:
             prompt_text = FONT_MEDIUM.render("New High Score! Enter your name:", True, BLACK)
             DISPLAYSURF.blit(prompt_text, (WINDOW_WIDTH//2 - prompt_text.get_width()//2, 280))
             name_input_rect = pygame.Rect(WINDOW_WIDTH//2 - 150, 330, 300, 40)
-            pygame.draw.rect(DISPLAYSURF, WHITE if not self.name_input_active else LIGHT_BLUE, name_input_rect)
-            pygame.draw.rect(DISPLAYSURF, BLACK, name_input_rect, 2)
+            # Always white background for input
+            pygame.draw.rect(DISPLAYSURF, WHITE, name_input_rect, border_radius=10)
+            pygame.draw.rect(DISPLAYSURF, BLACK, name_input_rect, 2, border_radius=10)
             name_text = FONT_MEDIUM.render(self.player_name, True, BLACK)
             DISPLAYSURF.blit(name_text, (name_input_rect.x + 10, name_input_rect.centery - name_text.get_height()//2))
             # Draw submit button if name is entered
             if len(self.player_name) > 0:
-                submit_button = pygame.Rect(WINDOW_WIDTH//2 - 75, 390, 150, 40)
-                pygame.draw.rect(DISPLAYSURF, LIGHT_GREEN, submit_button)
-                submit_text = FONT_MEDIUM.render("Submit", True, BLACK)
+                submit_button = pygame.Rect(WINDOW_WIDTH//2 - 75, 390, 150, 44)
+                # Match Tetris Math button style: blue, border radius 10, white text
+                pygame.draw.rect(DISPLAYSURF, PRIMARY_COLOR, submit_button, border_radius=10)
+                pygame.draw.rect(DISPLAYSURF, ACCENT_COLOR, submit_button, 2, border_radius=10)
+                submit_text = FONT_MEDIUM.render("Submit", True, WHITE)
                 DISPLAYSURF.blit(submit_text, (submit_button.centerx - submit_text.get_width()//2, submit_button.centery - submit_text.get_height()//2))
-        # Draw main menu button
-        menu_button = pygame.Rect(WINDOW_WIDTH//2 - 100, 450, 200, 50)
-        pygame.draw.rect(DISPLAYSURF, LIGHT_BLUE, menu_button)
-        menu_text = FONT_MEDIUM.render("Main Menu", True, BLACK)
-        DISPLAYSURF.blit(menu_text, (menu_button.centerx - menu_text.get_width()//2, menu_button.centery - menu_text.get_height()//2))
-        return menu_button, name_input_rect, submit_button
+        return None, name_input_rect, submit_button
     
     def handle_menu_click(self, mouse_pos, buttons):
         for i, button in enumerate(buttons):
@@ -612,10 +634,6 @@ class MathFlipGame:
                     self.state = "game_over"
     
     def handle_game_over_click(self, mouse_pos, menu_button, name_input_rect, submit_button):
-        # Menu button: return to main menu
-        if menu_button and menu_button.collidepoint(mouse_pos):
-            self.state = "menu"
-            return
         # Name input box: activate for typing
         if name_input_rect and name_input_rect.collidepoint(mouse_pos):
             self.name_input_active = True
@@ -627,8 +645,9 @@ class MathFlipGame:
             if is_high_score:
                 self.score += self.timer
             update_highscores(self.difficulty, self.player_name, self.score)
-            self.state = "high_scores"
+            self.state = "menu"
             self.name_input_active = False
+            self.player_name = ""
             return
         # Clicked elsewhere: deactivate name input
         self.name_input_active = False
