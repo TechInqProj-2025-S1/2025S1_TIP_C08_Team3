@@ -72,7 +72,7 @@ def main():
     # Define the games
     games = [
         Game("Word Pop", "Click balloons with correctly spelled words", "word_pop"),
-        Game("Math Beats", "Solve math problems coordinated with music rhythm", "math_beats"),
+        Game("Math Flip", "Match math questions to answers in a grid", "MathFlip.voltorb"),
         Game("Spell Quest", "Word puzzle game with masked letters", "spell_quest"),
         Game("Sequence Game", "Identify missing numbers in sequences", "sequence_game"),
         Game("Typing Game", "Type falling words before they hit the ground", "typing_game"),

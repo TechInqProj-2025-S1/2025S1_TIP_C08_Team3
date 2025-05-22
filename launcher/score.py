@@ -18,6 +18,16 @@ def get_high_scores(game_name):
     try:
         with open(score_file, 'r', encoding='utf-8') as f:
             scores = json.load(f)
+        # Math Flip stores scores as a dict by difficulty, flatten for launcher
+        if game_name.lower().replace(' ', '_') == 'math_flip':
+            # scores is a dict: {"Easy": [...], "Normal": [...], "Hard": [...]}
+            flat_scores = []
+            for difficulty, entries in scores.items():
+                for entry in entries:
+                    entry_copy = dict(entry)
+                    entry_copy['difficulty'] = difficulty
+                    flat_scores.append(entry_copy)
+            return flat_scores
         return scores
-    except (json.JSONDecodeError, OSError):
+    except (json.JSONDecodeError, OSError, AttributeError):
         return []

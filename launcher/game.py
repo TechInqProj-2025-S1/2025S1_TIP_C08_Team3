@@ -34,20 +34,26 @@ class Game:
         try:
             # Dynamic import of the game module (avoid circular imports)
             if self.name == "Tetris Math":
+                import pygame
+                screen = pygame.display.get_surface()
                 from games.TetrisMath.main import main as tetris_main  # noqa: E402
                 tetris_main(
                     screen_width=screen_width,
                     screen_height=screen_height,
-                    fullscreen=fullscreen
+                    fullscreen=fullscreen,
+                    screen=screen
                 )
                 return True
-            elif self.name == "Math Beats":
-                from games.math_beats.math_beats import main as math_beats_main  # noqa: E402
-                math_beats_main(
-                    screen_width=screen_width,
-                    screen_height=screen_height,
-                    fullscreen=fullscreen
-                )
+            elif self.name == "Math Flip":
+                import pygame
+                screen = pygame.display.get_surface()
+                # Try to use the main() entrypoint if available for consistency
+                try:
+                    from games.MathFlip import main as mathflip_main  # noqa: E402
+                    mathflip_main(screen=screen)
+                except ImportError:
+                    from games.MathFlip.voltorb import launch_math_flip  # noqa: E402
+                    launch_math_flip()
                 return True
             # For test: always try importlib if module_name is set
             if self.module_name:
