@@ -23,7 +23,7 @@
 
 ## Automated Code Quality Checks
 
-This repository uses GitHub Actions to automatically run PyLint on all Python code when:
+This repository uses GitHub Actions to automatically run PyLint on all Python code and Test when:
 - You push to the main branch
 - You create or update a pull request to the main branch
 
