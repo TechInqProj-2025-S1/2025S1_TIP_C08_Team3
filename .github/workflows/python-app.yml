@@ -32,7 +32,7 @@ jobs:
 
     - name: Test with pytest
       run: |
-        PYTHONPATH=${{ github.workspace }} pytest --maxfail=3 --disable-warnings --cov=games/TetrisMath --cov=launcher --cov-report=term --cov-report=xml -v tests/
+        PYTHONPATH=${{ github.workspace }} pytest --maxfail=3 --disable-warnings --cov=games/MathFlip --cov=games/TetrisMath --cov=launcher --cov-report=term --cov-report=xml -v tests/
        
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v3
